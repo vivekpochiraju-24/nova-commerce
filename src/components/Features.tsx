@@ -1,19 +1,19 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Brain, Zap, Shield, Truck, HeartHandshake, BarChart3 } from 'lucide-react';
+import { Zap, Shield, Truck, HeartHandshake, RotateCcw, Award } from 'lucide-react';
 import GlassCard from './ui/GlassCard';
 
 const Features: React.FC = () => {
   const features = [
     {
-      icon: Brain,
-      title: 'AI-Powered Recommendations',
-      description: 'Our intelligent system learns your preferences to suggest products you\'ll love.',
+      icon: Truck,
+      title: 'Free Shipping',
+      description: 'Free delivery on orders above ₹500. Fast and reliable shipping across India.',
       color: 'from-neon-cyan to-neon-violet',
     },
     {
       icon: Zap,
-      title: 'Instant Checkout',
+      title: 'Quick Checkout',
       description: 'Complete your purchase in seconds with our streamlined checkout process.',
       color: 'from-neon-violet to-neon-pink',
     },
@@ -24,27 +24,27 @@ const Features: React.FC = () => {
       color: 'from-neon-green to-neon-cyan',
     },
     {
-      icon: Truck,
-      title: 'Express Delivery',
-      description: 'Free shipping on orders over $50 with real-time tracking.',
+      icon: RotateCcw,
+      title: 'Easy Returns',
+      description: '7-day hassle-free return policy on all products.',
       color: 'from-neon-pink to-neon-violet',
     },
     {
       icon: HeartHandshake,
-      title: '24/7 AI Support',
-      description: 'Get instant help from our AI assistant anytime, anywhere.',
+      title: '24/7 Support',
+      description: 'Get help from our support team anytime via chat, email, or phone.',
       color: 'from-neon-cyan to-neon-green',
     },
     {
-      icon: BarChart3,
-      title: 'Smart Analytics',
-      description: 'Track your orders, spending habits, and discover new savings.',
+      icon: Award,
+      title: 'Quality Guaranteed',
+      description: '100% genuine products with manufacturer warranty.',
       color: 'from-neon-violet to-neon-cyan',
     },
   ];
 
   return (
-    <section className="py-20">
+    <section className="py-20 bg-secondary/30">
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <motion.div
@@ -54,11 +54,10 @@ const Features: React.FC = () => {
           className="text-center mb-16"
         >
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Why Choose <span className="text-gradient-neon">SmartCommerce</span>?
+            Why Choose <span className="text-gradient-neon">VEB Store</span>?
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Experience the next generation of online shopping with cutting-edge features 
-            designed to make your life easier.
+            We're committed to providing the best shopping experience with quality products and excellent service.
           </p>
         </motion.div>
 

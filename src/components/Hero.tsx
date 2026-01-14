@@ -1,14 +1,15 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, ArrowRight, Zap, Shield, Truck } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, Zap, Shield, Truck, CreditCard } from 'lucide-react';
 import NeonButton from './ui/NeonButton';
 
 const Hero: React.FC = () => {
   const features = [
-    { icon: Sparkles, text: 'AI-Powered Recommendations' },
-    { icon: Zap, text: 'Lightning Fast Checkout' },
+    { icon: Zap, text: 'Fast Delivery' },
     { icon: Shield, text: 'Secure Payments' },
-    { icon: Truck, text: 'Free Express Shipping' },
+    { icon: Truck, text: 'Free Shipping' },
+    { icon: CreditCard, text: 'Easy Returns' },
   ];
 
   return (
@@ -55,34 +56,37 @@ const Hero: React.FC = () => {
               transition={{ delay: 0.2 }}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-neon-cyan/10 to-neon-violet/10 border border-neon-cyan/20"
             >
-              <Sparkles className="w-4 h-4 text-neon-cyan" />
+              <Zap className="w-4 h-4 text-neon-cyan" />
               <span className="text-sm font-medium text-foreground">
-                AI-Powered Shopping Experience
+                Premium Quality Products
               </span>
             </motion.div>
 
             {/* Headline */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-foreground">
-              Shop Smarter with{' '}
-              <span className="text-gradient-neon">AI-Driven</span>{' '}
-              Recommendations
+              Welcome to{' '}
+              <span className="text-gradient-neon">VEB Store</span>
             </h1>
 
             {/* Subtitle */}
             <p className="text-lg md:text-xl text-muted-foreground max-w-xl">
-              Experience the future of e-commerce. Our intelligent platform learns your preferences 
-              and curates the perfect products just for you.
+              Discover premium electronics, accessories, and more at unbeatable prices. 
+              Quality products with fast delivery across India.
             </p>
 
             {/* CTA Buttons */}
             <div className="flex flex-wrap gap-4">
-              <NeonButton variant="primary" size="lg" glowColor="cyan">
-                Start Shopping
-                <ArrowRight className="w-5 h-5" />
-              </NeonButton>
-              <NeonButton variant="outline" size="lg">
-                Explore AI Features
-              </NeonButton>
+              <Link to="/products">
+                <NeonButton variant="primary" size="lg" glowColor="cyan">
+                  Shop Now
+                  <ArrowRight className="w-5 h-5" />
+                </NeonButton>
+              </Link>
+              <Link to="/products">
+                <NeonButton variant="outline" size="lg">
+                  View All Products
+                </NeonButton>
+              </Link>
             </div>
 
             {/* Features */}
@@ -120,53 +124,35 @@ const Hero: React.FC = () => {
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
             >
               <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-neon-cyan to-neon-violet flex items-center justify-center">
-                      <Sparkles className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">AI Assistant</p>
-                      <p className="font-semibold text-foreground">Finding perfect products...</p>
-                    </div>
-                  </div>
-                  <motion.div
-                    className="w-3 h-3 rounded-full bg-neon-green"
-                    animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  />
-                </div>
-
-                {/* Progress */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Analyzing preferences</span>
-                    <span className="text-neon-cyan">87%</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                    <motion.div
-                      className="h-full rounded-full bg-gradient-to-r from-neon-cyan to-neon-violet"
-                      initial={{ width: 0 }}
-                      animate={{ width: '87%' }}
-                      transition={{ duration: 2, delay: 0.5 }}
-                    />
-                  </div>
+                <div className="text-center">
+                  <h3 className="text-2xl font-bold text-foreground mb-2">Special Offers</h3>
+                  <p className="text-muted-foreground">Up to 50% off on selected items</p>
                 </div>
 
                 {/* Sample Products */}
                 <div className="grid grid-cols-3 gap-3">
-                  {[1, 2, 3].map((i) => (
+                  {[
+                    'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200',
+                    'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=200',
+                    'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=200',
+                  ].map((img, i) => (
                     <motion.div
                       key={i}
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.8 + i * 0.2 }}
-                      className="aspect-square rounded-xl bg-gradient-to-br from-secondary to-muted flex items-center justify-center"
+                      className="aspect-square rounded-xl overflow-hidden"
                     >
-                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-neon-cyan/20 to-neon-violet/20" />
+                      <img src={img} alt="" className="w-full h-full object-cover" />
                     </motion.div>
                   ))}
                 </div>
+
+                <Link to="/products" className="block">
+                  <NeonButton variant="secondary" className="w-full">
+                    Explore Deals
+                  </NeonButton>
+                </Link>
               </div>
             </motion.div>
 
@@ -178,10 +164,10 @@ const Hero: React.FC = () => {
               transition={{ duration: 1, delay: 1, rotate: { duration: 4, repeat: Infinity } }}
             >
               <div className="flex items-center gap-2">
-                <span className="text-2xl">🎯</span>
+                <span className="text-2xl">🚚</span>
                 <div>
-                  <p className="text-xs text-muted-foreground">Match Rate</p>
-                  <p className="font-bold text-neon-cyan">98%</p>
+                  <p className="text-xs text-muted-foreground">Free Shipping</p>
+                  <p className="font-bold text-neon-cyan">₹500+</p>
                 </div>
               </div>
             </motion.div>
@@ -193,10 +179,10 @@ const Hero: React.FC = () => {
               transition={{ duration: 1, delay: 1.2, rotate: { duration: 4, repeat: Infinity } }}
             >
               <div className="flex items-center gap-2">
-                <span className="text-2xl">⚡</span>
+                <span className="text-2xl">⭐</span>
                 <div>
-                  <p className="text-xs text-muted-foreground">Response Time</p>
-                  <p className="font-bold text-neon-violet">0.3s</p>
+                  <p className="text-xs text-muted-foreground">Trusted by</p>
+                  <p className="font-bold text-neon-violet">10K+ Customers</p>
                 </div>
               </div>
             </motion.div>

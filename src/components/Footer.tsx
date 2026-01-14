@@ -1,21 +1,35 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Mail, Phone, MapPin, Twitter, Instagram, Facebook, Linkedin } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Store, Mail, Phone, MapPin, Twitter, Instagram, Facebook } from 'lucide-react';
 import NeonButton from './ui/NeonButton';
 
 const Footer: React.FC = () => {
   const footerLinks = {
-    Shop: ['All Products', 'New Arrivals', 'Best Sellers', 'Sale', 'AI Picks'],
-    Support: ['Help Center', 'Track Order', 'Returns', 'Shipping Info', 'FAQs'],
-    Company: ['About Us', 'Careers', 'Press', 'Blog', 'Affiliates'],
-    Legal: ['Privacy Policy', 'Terms of Service', 'Cookie Policy', 'Accessibility'],
+    Shop: [
+      { name: 'All Products', href: '/products' },
+      { name: 'New Arrivals', href: '/products' },
+      { name: 'Best Sellers', href: '/products' },
+      { name: 'Deals', href: '/products' },
+    ],
+    Support: [
+      { name: 'Help Center', href: '#' },
+      { name: 'Track Order', href: '#' },
+      { name: 'Returns', href: '#' },
+      { name: 'Shipping Info', href: '#' },
+    ],
+    Company: [
+      { name: 'About Us', href: '#' },
+      { name: 'Contact', href: '#' },
+      { name: 'Careers', href: '#' },
+      { name: 'Blog', href: '#' },
+    ],
   };
 
   const socialLinks = [
     { icon: Twitter, href: '#' },
     { icon: Instagram, href: '#' },
     { icon: Facebook, href: '#' },
-    { icon: Linkedin, href: '#' },
   ];
 
   return (
@@ -25,9 +39,9 @@ const Footer: React.FC = () => {
         <div className="container mx-auto px-4 py-12">
           <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
             <div className="text-center lg:text-left">
-              <h3 className="text-2xl font-bold mb-2">Join Our Newsletter</h3>
+              <h3 className="text-2xl font-bold mb-2">Subscribe to Our Newsletter</h3>
               <p className="text-primary-foreground/70">
-                Get AI-powered product recommendations and exclusive deals delivered to your inbox.
+                Get updates on new products and exclusive deals.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
@@ -38,7 +52,6 @@ const Footer: React.FC = () => {
               />
               <NeonButton variant="secondary" size="md">
                 Subscribe
-                <Sparkles className="w-4 h-4" />
               </NeonButton>
             </div>
           </div>
@@ -47,39 +60,36 @@ const Footer: React.FC = () => {
 
       {/* Main Footer */}
       <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {/* Logo & Description */}
-          <div className="col-span-2 lg:col-span-2">
-            <motion.a
-              href="/"
-              className="flex items-center gap-2 mb-4"
-              whileHover={{ scale: 1.05 }}
-            >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neon-cyan to-neon-violet flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-xl font-bold">
-                Smart<span className="text-neon-cyan">Commerce</span>
-              </span>
-            </motion.a>
+          <div className="col-span-2 md:col-span-1">
+            <Link to="/">
+              <motion.div className="flex items-center gap-2 mb-4" whileHover={{ scale: 1.05 }}>
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neon-cyan to-neon-violet flex items-center justify-center">
+                  <Store className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-xl font-bold">
+                  VEB<span className="text-neon-cyan"> Store</span>
+                </span>
+              </motion.div>
+            </Link>
             <p className="text-primary-foreground/70 mb-6 max-w-xs">
-              The future of shopping is here. AI-powered recommendations, seamless checkout, 
-              and an experience like no other.
+              Your trusted destination for premium electronics and accessories in India.
             </p>
             
             {/* Contact Info */}
             <div className="space-y-3">
               <div className="flex items-center gap-3 text-sm text-primary-foreground/70">
                 <Mail className="w-4 h-4 text-neon-cyan" />
-                support@smartcommerce.com
+                support@vebstore.in
               </div>
               <div className="flex items-center gap-3 text-sm text-primary-foreground/70">
                 <Phone className="w-4 h-4 text-neon-cyan" />
-                +1 (555) 123-4567
+                +91 98765 43210
               </div>
               <div className="flex items-center gap-3 text-sm text-primary-foreground/70">
                 <MapPin className="w-4 h-4 text-neon-cyan" />
-                San Francisco, CA
+                Mumbai, India
               </div>
             </div>
           </div>
@@ -90,14 +100,15 @@ const Footer: React.FC = () => {
               <h4 className="font-semibold mb-4">{title}</h4>
               <ul className="space-y-3">
                 {links.map((link) => (
-                  <li key={link}>
-                    <motion.a
-                      href="#"
-                      className="text-sm text-primary-foreground/70 hover:text-neon-cyan transition-colors"
-                      whileHover={{ x: 5 }}
-                    >
-                      {link}
-                    </motion.a>
+                  <li key={link.name}>
+                    <Link to={link.href}>
+                      <motion.span
+                        className="text-sm text-primary-foreground/70 hover:text-neon-cyan transition-colors"
+                        whileHover={{ x: 5 }}
+                      >
+                        {link.name}
+                      </motion.span>
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -111,7 +122,7 @@ const Footer: React.FC = () => {
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-sm text-primary-foreground/70">
-              © 2026 SmartCommerce. All rights reserved.
+              © 2024 VEB Store. All rights reserved.
             </p>
             
             {/* Social Links */}
