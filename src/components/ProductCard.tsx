@@ -1,10 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Heart, ShoppingCart, Star } from 'lucide-react';
 import { Product } from '@/data/products';
-import { useCart } from '@/context/CartContext';
+import { useUserCart } from '@/context/UserCartContext';
 import { useWishlist } from '@/context/WishlistContext';
+import { useAuth } from '@/context/AuthContext';
 import GlassCard from './ui/GlassCard';
 import NeonButton from './ui/NeonButton';
 import { toast } from 'sonner';
@@ -15,8 +16,10 @@ interface ProductCardProps {
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, delay = 0 }) => {
-  const { addToCart } = useCart();
+  const { addToCart } = useUserCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   
   const discount = product.originalPrice
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
@@ -28,12 +31,18 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, delay = 0 }) => {
     e.preventDefault();
     e.stopPropagation();
     addToCart(product);
-    toast.success(`${product.name} added to cart!`);
   };
 
   const handleWishlistToggle = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    if (!user) {
+      toast.error('Please login to add products to wishlist');
+      navigate('/login');
+      return;
+    }
+    
     if (inWishlist) {
       removeFromWishlist(product.id);
       toast.info(`${product.name} removed from wishlist`);

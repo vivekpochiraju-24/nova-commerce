@@ -1,16 +1,26 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { useCart } from '@/context/CartContext';
+import { useUserCart } from '@/context/UserCartContext';
+import { useAuth } from '@/context/AuthContext';
 import NeonButton from '@/components/ui/NeonButton';
 import { toast } from 'sonner';
 
 const Cart: React.FC = () => {
   const navigate = useNavigate();
-  const { items, updateQuantity, removeFromCart, clearCart, totalPrice } = useCart();
+  const { items, updateQuantity, removeFromCart, clearCart, totalPrice } = useUserCart();
+  const { user } = useAuth();
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!user) {
+      toast.error('Please login to view your cart');
+      navigate('/login');
+    }
+  }, [user, navigate]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -25,9 +35,7 @@ const Cart: React.FC = () => {
       toast.error('Your cart is empty!');
       return;
     }
-    toast.success('Order placed successfully! Thank you for shopping with VEB Store.');
-    clearCart();
-    navigate('/');
+    navigate('/checkout');
   };
 
   return (
@@ -82,18 +90,18 @@ const Cart: React.FC = () => {
               <div className="lg:col-span-2 space-y-4">
                 {items.map((item, index) => (
                   <motion.div
-                    key={item.product.id}
+                    key={item.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
                     className="flex gap-4 p-4 rounded-2xl bg-card border border-border"
                   >
                     {/* Image */}
-                    <Link to={`/product/${item.product.id}`}>
+                    <Link to={`/product/${item.id}`}>
                       <div className="w-24 h-24 md:w-32 md:h-32 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
                         <img
-                          src={item.product.image}
-                          alt={item.product.name}
+                          src={item.image}
+                          alt={item.name}
                           className="w-full h-full object-cover"
                         />
                       </div>
@@ -101,30 +109,30 @@ const Cart: React.FC = () => {
 
                     {/* Details */}
                     <div className="flex-1 min-w-0">
-                      <Link to={`/product/${item.product.id}`}>
+                      <Link to={`/product/${item.id}`}>
                         <h3 className="font-semibold text-foreground hover:text-primary transition-colors line-clamp-2">
-                          {item.product.name}
+                          {item.name}
                         </h3>
                       </Link>
                       <p className="text-sm text-muted-foreground mt-1">
-                        {item.product.category}
+                        {item.category}
                       </p>
                       <p className="text-lg font-bold text-foreground mt-2">
-                        {formatPrice(item.product.price)}
+                        {formatPrice(item.price)}
                       </p>
 
                       {/* Quantity Controls */}
                       <div className="flex items-center gap-4 mt-3">
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
                             className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
                           >
                             <Minus className="w-4 h-4" />
                           </button>
                           <span className="w-8 text-center font-medium">{item.quantity}</span>
                           <button
-                            onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
                             className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
                           >
                             <Plus className="w-4 h-4" />
@@ -132,7 +140,7 @@ const Cart: React.FC = () => {
                         </div>
                         <button
                           onClick={() => {
-                            removeFromCart(item.product.id);
+                            removeFromCart(item.id);
                             toast.info('Item removed from cart');
                           }}
                           className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
@@ -145,7 +153,7 @@ const Cart: React.FC = () => {
                     {/* Item Total */}
                     <div className="text-right hidden sm:block">
                       <p className="text-lg font-bold text-foreground">
-                        {formatPrice(item.product.price * item.quantity)}
+                        {formatPrice(item.price * item.quantity)}
                       </p>
                     </div>
                   </motion.div>

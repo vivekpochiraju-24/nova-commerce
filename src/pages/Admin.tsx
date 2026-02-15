@@ -3,22 +3,42 @@ import { motion } from 'framer-motion';
 import { 
   LayoutDashboard, Package, ShoppingCart, Users, BarChart3, 
   Plus, Edit2, Trash2, Search, Store, LogOut, Menu, X,
-  TrendingUp, DollarSign, Eye
+  TrendingUp, DollarSign, Eye, Calendar, Mail, Phone, Settings,
+  AlertCircle, CheckCircle, Clock, ArrowUp, ArrowDown, MoreVertical,
+  Download, Filter, RefreshCw, Bell, User, Shield, Activity, Target,
+  Zap, Award, Star, MessageSquare, FileText, Database, Cpu, HardDrive,
+  Wifi, Battery, Thermometer, Wind, Droplets, Sun, Moon, Cloud,
+  Key, ArrowRight
 } from 'lucide-react';
-import { products as initialProducts, Product, categories } from '@/data/products';
+import { useProduct } from '@/context/ProductContext';
+import { useOrder } from '@/context/OrderContext';
+import { useAuth } from '@/context/AuthContext';
+import { Product } from '@/data/products';
+import { categories } from '@/data/products';
 import NeonButton from '@/components/ui/NeonButton';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-type Tab = 'dashboard' | 'products' | 'orders' | 'customers';
+type Tab = 'dashboard' | 'products' | 'orders' | 'customers' | 'analytics' | 'settings' | 'reports';
 
 const Admin: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
-  const [productList, setProductList] = useState<Product[]>(initialProducts);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const navigate = useNavigate();
+  const { orders, updateOrderStatus } = useOrder();
+  const { products, addProduct, updateProduct, deleteProduct } = useProduct();
+  const { user, allUsers, logout } = useAuth();
+
+  // Protect admin route
+  React.useEffect(() => {
+    if (!user || !user.isAdmin) {
+      toast.error('Access denied. Admin privileges required.');
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   // Form state for new/edit product
   const [formData, setFormData] = useState({
@@ -42,43 +62,74 @@ const Admin: React.FC = () => {
   const stats = [
     { 
       label: 'Total Revenue', 
-      value: formatPrice(245890), 
+      value: formatPrice(orders.reduce((sum, order) => sum + order.totalAmount, 0)), 
       change: '+12.5%', 
       icon: DollarSign,
-      color: 'from-neon-green to-neon-cyan'
+      color: 'from-neon-green to-neon-cyan',
+      trend: 'up',
+      detail: 'vs last month'
     },
     { 
       label: 'Total Orders', 
-      value: '1,234', 
+      value: orders.length.toString(), 
       change: '+8.2%', 
       icon: ShoppingCart,
-      color: 'from-neon-cyan to-neon-violet'
+      color: 'from-neon-cyan to-neon-violet',
+      trend: 'up',
+      detail: 'this week'
     },
     { 
       label: 'Total Products', 
-      value: productList.length.toString(), 
+      value: products.length.toString(), 
       change: '+3', 
       icon: Package,
-      color: 'from-neon-violet to-neon-pink'
+      color: 'from-neon-violet to-neon-pink',
+      trend: 'up',
+      detail: 'new additions'
     },
     { 
       label: 'Total Customers', 
-      value: '856', 
+      value: allUsers.filter(u => !u.isAdmin).length.toString(), 
       change: '+15.3%', 
       icon: Users,
-      color: 'from-neon-pink to-neon-violet'
+      color: 'from-neon-pink to-neon-violet',
+      trend: 'up',
+      detail: 'active users'
     },
+    { 
+      label: 'Conversion Rate', 
+      value: '3.2%', 
+      change: '+0.8%', 
+      icon: Target,
+      color: 'from-orange-500 to-red-500',
+      trend: 'up',
+      detail: 'avg conversion'
+    },
+    { 
+      label: 'Avg Order Value', 
+      value: formatPrice(orders.length > 0 ? orders.reduce((sum, order) => sum + order.totalAmount, 0) / orders.length : 0), 
+      change: '+5.4%', 
+      icon: TrendingUp,
+      color: 'from-purple-500 to-indigo-500',
+      trend: 'up',
+      detail: 'per order'
+    }
   ];
 
-  const recentOrders = [
-    { id: 'ORD001', customer: 'Rahul Sharma', total: 12999, status: 'Delivered', date: '2024-01-15' },
-    { id: 'ORD002', customer: 'Priya Patel', total: 8499, status: 'Shipped', date: '2024-01-14' },
-    { id: 'ORD003', customer: 'Amit Kumar', total: 5999, status: 'Processing', date: '2024-01-14' },
-    { id: 'ORD004', customer: 'Sneha Gupta', total: 15999, status: 'Pending', date: '2024-01-13' },
-    { id: 'ORD005', customer: 'Vikram Singh', total: 3499, status: 'Delivered', date: '2024-01-13' },
-  ];
+  const recentOrders = orders.slice(0, 5);
 
-  const filteredProducts = productList.filter(p => 
+  // Enhanced customer data with order information
+  const allCustomers = allUsers.filter(u => !u.isAdmin).map(user => {
+    const customerOrders = orders.filter(order => order.customerEmail === user.email);
+    return {
+      ...user,
+      orders: customerOrders.length,
+      spent: customerOrders.reduce((sum, order) => sum + order.totalAmount, 0),
+      lastOrder: customerOrders.length > 0 ? Math.max(...customerOrders.map(o => new Date(o.orderDate).getTime())) : null
+    };
+  }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -113,7 +164,7 @@ const Admin: React.FC = () => {
 
   const handleDeleteProduct = (id: string) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
-      setProductList(prev => prev.filter(p => p.id !== id));
+      deleteProduct(id);
       toast.success('Product deleted successfully');
     }
   };
@@ -124,8 +175,7 @@ const Admin: React.FC = () => {
       return;
     }
 
-    const productData: Product = {
-      id: editingProduct?.id || Date.now().toString(),
+    const productData = {
       name: formData.name,
       price: parseInt(formData.price),
       originalPrice: formData.originalPrice ? parseInt(formData.originalPrice) : undefined,
@@ -138,10 +188,10 @@ const Admin: React.FC = () => {
     };
 
     if (editingProduct) {
-      setProductList(prev => prev.map(p => p.id === editingProduct.id ? productData : p));
+      updateProduct(editingProduct.id, productData);
       toast.success('Product updated successfully');
     } else {
-      setProductList(prev => [...prev, productData]);
+      addProduct(productData);
       toast.success('Product added successfully');
     }
 
@@ -153,6 +203,9 @@ const Admin: React.FC = () => {
     { id: 'products' as Tab, label: 'Products', icon: Package },
     { id: 'orders' as Tab, label: 'Orders', icon: ShoppingCart },
     { id: 'customers' as Tab, label: 'Customers', icon: Users },
+    { id: 'analytics' as Tab, label: 'Analytics', icon: BarChart3 },
+    { id: 'reports' as Tab, label: 'Reports', icon: FileText },
+    { id: 'settings' as Tab, label: 'Settings', icon: Settings },
   ];
 
   const getStatusColor = (status: string) => {
@@ -232,12 +285,23 @@ const Admin: React.FC = () => {
               <h1 className="text-xl font-bold text-foreground capitalize">{activeTab}</h1>
             </div>
             <div className="flex items-center gap-4">
+              <button className="p-2 rounded-lg hover:bg-secondary relative">
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+              </button>
+              <button className="p-2 rounded-lg hover:bg-secondary">
+                <RefreshCw className="w-5 h-5" />
+              </button>
               <Link to="/">
                 <NeonButton variant="outline" size="sm">
                   <Eye className="w-4 h-4" />
                   View Store
                 </NeonButton>
               </Link>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+                <Shield className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-primary">Admin</span>
+              </div>
             </div>
           </div>
         </header>
@@ -251,27 +315,30 @@ const Admin: React.FC = () => {
               className="space-y-6"
             >
               {/* Stats Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                 {stats.map((stat, index) => (
                   <motion.div
                     key={stat.label}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="p-6 rounded-2xl bg-card border border-border"
+                    className="p-4 rounded-2xl bg-card border border-border hover:shadow-lg transition-shadow"
                   >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">{stat.label}</p>
-                        <p className="text-2xl font-bold text-foreground mt-1">{stat.value}</p>
-                        <p className="text-sm text-neon-green flex items-center gap-1 mt-1">
-                          <TrendingUp className="w-3 h-3" />
-                          {stat.change}
-                        </p>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className={`p-2 rounded-xl bg-gradient-to-br ${stat.color}`}>
+                        <stat.icon className="w-4 h-4 text-white" />
                       </div>
-                      <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.color}`}>
-                        <stat.icon className="w-6 h-6 text-white" />
+                      <div className={`flex items-center gap-1 text-xs font-medium ${
+                        stat.trend === 'up' ? 'text-green-500' : 'text-red-500'
+                      }`}>
+                        {stat.trend === 'up' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                        {stat.change}
                       </div>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">{stat.label}</p>
+                      <p className="text-lg font-bold text-foreground">{stat.value}</p>
+                      <p className="text-xs text-muted-foreground">{stat.detail}</p>
                     </div>
                   </motion.div>
                 ))}
@@ -295,14 +362,19 @@ const Admin: React.FC = () => {
                       {recentOrders.map((order) => (
                         <tr key={order.id} className="border-b border-border hover:bg-secondary/50">
                           <td className="py-3 px-4 font-medium">{order.id}</td>
-                          <td className="py-3 px-4">{order.customer}</td>
-                          <td className="py-3 px-4">{formatPrice(order.total)}</td>
+                          <td className="py-3 px-4">{order.customerName}</td>
+                          <td className="py-3 px-4">{formatPrice(order.totalAmount)}</td>
                           <td className="py-3 px-4">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              order.status === 'Delivered' ? 'bg-green-100 text-green-800' :
+                              order.status === 'Shipped' ? 'bg-blue-100 text-blue-800' :
+                              order.status === 'Processing' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
                               {order.status}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-muted-foreground">{order.date}</td>
+                          <td className="py-3 px-4">{order.orderDate}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -419,17 +491,17 @@ const Admin: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {recentOrders.map((order) => (
+                    {orders.map((order) => (
                       <tr key={order.id} className="border-b border-border hover:bg-secondary/50">
                         <td className="py-3 px-4 font-medium">{order.id}</td>
-                        <td className="py-3 px-4">{order.customer}</td>
-                        <td className="py-3 px-4">{formatPrice(order.total)}</td>
+                        <td className="py-3 px-4">{order.customerName}</td>
+                        <td className="py-3 px-4">{formatPrice(order.totalAmount)}</td>
                         <td className="py-3 px-4">
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
                             {order.status}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-muted-foreground">{order.date}</td>
+                        <td className="py-3 px-4 text-muted-foreground">{order.orderDate}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -452,27 +524,293 @@ const Admin: React.FC = () => {
                     <tr className="border-b border-border">
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Customer</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Email</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Contact Info</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Orders</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Total Spent</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Joined</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      { name: 'Rahul Sharma', email: 'rahul@example.com', orders: 5, spent: 45000 },
-                      { name: 'Priya Patel', email: 'priya@example.com', orders: 3, spent: 28000 },
-                      { name: 'Amit Kumar', email: 'amit@example.com', orders: 8, spent: 72000 },
-                      { name: 'Sneha Gupta', email: 'sneha@example.com', orders: 2, spent: 15000 },
-                      { name: 'Vikram Singh', email: 'vikram@example.com', orders: 6, spent: 54000 },
-                    ].map((customer, index) => (
-                      <tr key={index} className="border-b border-border hover:bg-secondary/50">
-                        <td className="py-3 px-4 font-medium">{customer.name}</td>
-                        <td className="py-3 px-4 text-muted-foreground">{customer.email}</td>
-                        <td className="py-3 px-4">{customer.orders}</td>
-                        <td className="py-3 px-4">{formatPrice(customer.spent)}</td>
+                    {allCustomers.map((customer, index) => (
+                      <tr key={customer.id} className="border-b border-border hover:bg-secondary/50">
+                        <td className="py-3 px-4">
+                          <div>
+                            <div className="font-medium">{customer.name}</div>
+                            <div className="text-xs text-muted-foreground">ID: {customer.id}</div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <Mail className="w-4 h-4 text-muted-foreground" />
+                            <span>{customer.email}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="space-y-1">
+                            {customer.phone && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <Phone className="w-4 h-4 text-muted-foreground" />
+                                <span>{customer.phone}</span>
+                              </div>
+                            )}
+                            {customer.address && (
+                              <div className="text-sm text-muted-foreground max-w-xs truncate">
+                                {customer.address}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="text-center">
+                            <div className="font-medium">{customer.orders}</div>
+                            {customer.lastOrder && (
+                              <div className="text-xs text-muted-foreground">
+                                Last: {new Date(customer.lastOrder).toLocaleDateString()}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 font-medium">{formatPrice(customer.spent)}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm">{new Date(customer.createdAt).toLocaleDateString()}</span>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Analytics */}
+          {activeTab === 'analytics' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Sales Chart */}
+                <div className="rounded-2xl bg-card border border-border p-6">
+                  <h3 className="text-lg font-bold text-foreground mb-4">Sales Overview</h3>
+                  <div className="h-64 flex items-center justify-center bg-secondary/20 rounded-xl">
+                    <div className="text-center">
+                      <BarChart3 className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-muted-foreground">Sales chart visualization</p>
+                      <p className="text-sm text-muted-foreground">Integration with chart library needed</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Customer Analytics */}
+                <div className="rounded-2xl bg-card border border-border p-6">
+                  <h3 className="text-lg font-bold text-foreground mb-4">Customer Analytics</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">New Customers (This Month)</span>
+                      <span className="font-bold text-foreground">24</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Returning Customers</span>
+                      <span className="font-bold text-foreground">89</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Customer Retention Rate</span>
+                      <span className="font-bold text-green-500">78.5%</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Avg Customer Lifetime Value</span>
+                      <span className="font-bold text-foreground">{formatPrice(12500)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Product Performance */}
+                <div className="rounded-2xl bg-card border border-border p-6">
+                  <h3 className="text-lg font-bold text-foreground mb-4">Product Performance</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Top Selling Product</span>
+                      <span className="font-bold text-foreground">Laptop Pro</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Low Stock Items</span>
+                      <span className="font-bold text-orange-500">3</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Category Performance</span>
+                      <span className="font-bold text-foreground">Electronics</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Products with Reviews</span>
+                      <span className="font-bold text-foreground">45/67</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Order Analytics */}
+                <div className="rounded-2xl bg-card border border-border p-6">
+                  <h3 className="text-lg font-bold text-foreground mb-4">Order Analytics</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Orders Today</span>
+                      <span className="font-bold text-foreground">12</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Pending Orders</span>
+                      <span className="font-bold text-yellow-500">5</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Average Processing Time</span>
+                      <span className="font-bold text-foreground">2.5 days</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Order Completion Rate</span>
+                      <span className="font-bold text-green-500">94.2%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Reports */}
+          {activeTab === 'reports' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              <div className="rounded-2xl bg-card border border-border p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-bold text-foreground">Reports & Exports</h2>
+                  <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+                    <Download className="w-4 h-4" />
+                    Export All
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[
+                    { title: 'Sales Report', desc: 'Monthly sales analysis', icon: DollarSign, color: 'from-green-500 to-emerald-500' },
+                    { title: 'Inventory Report', desc: 'Stock levels and movements', icon: Package, color: 'from-blue-500 to-cyan-500' },
+                    { title: 'Customer Report', desc: 'Customer demographics and behavior', icon: Users, color: 'from-purple-500 to-pink-500' },
+                    { title: 'Order Report', desc: 'Order history and status', icon: ShoppingCart, color: 'from-orange-500 to-red-500' },
+                    { title: 'Product Performance', desc: 'Best and worst performing products', icon: TrendingUp, color: 'from-indigo-500 to-purple-500' },
+                    { title: 'Financial Summary', desc: 'Revenue and expense summary', icon: FileText, color: 'from-yellow-500 to-orange-500' },
+                  ].map((report, index) => (
+                    <motion.div
+                      key={report.title}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="p-4 rounded-xl border border-border hover:shadow-lg transition-shadow cursor-pointer"
+                    >
+                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${report.color} flex items-center justify-center mb-3`}>
+                        <report.icon className="w-6 h-6 text-white" />
+                      </div>
+                      <h3 className="font-semibold text-foreground mb-1">{report.title}</h3>
+                      <p className="text-sm text-muted-foreground mb-3">{report.desc}</p>
+                      <button className="flex items-center gap-2 text-sm text-primary hover:underline">
+                        <Download className="w-3 h-3" />
+                        Generate Report
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Settings */}
+          {activeTab === 'settings' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              <div className="rounded-2xl bg-card border border-border p-6">
+                <h2 className="text-lg font-bold text-foreground mb-6">Admin Settings</h2>
+                
+                <div className="space-y-6">
+                  {/* Store Settings */}
+                  <div>
+                    <h3 className="font-semibold text-foreground mb-4">Store Configuration</h3>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-foreground">Store Name</p>
+                          <p className="text-sm text-muted-foreground">VEB Store</p>
+                        </div>
+                        <button className="text-sm text-primary hover:underline">Edit</button>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-foreground">Store Email</p>
+                          <p className="text-sm text-muted-foreground">admin@vebstore.com</p>
+                        </div>
+                        <button className="text-sm text-primary hover:underline">Edit</button>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-foreground">Currency</p>
+                          <p className="text-sm text-muted-foreground">Indian Rupee (₹)</p>
+                        </div>
+                        <button className="text-sm text-primary hover:underline">Change</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Notification Settings */}
+                  <div>
+                    <h3 className="font-semibold text-foreground mb-4">Notification Preferences</h3>
+                    <div className="space-y-3">
+                      {[
+                        { label: 'New Order Notifications', enabled: true },
+                        { label: 'Low Stock Alerts', enabled: true },
+                        { label: 'Customer Registration', enabled: false },
+                        { label: 'System Updates', enabled: true },
+                      ].map((setting, index) => (
+                        <div key={setting.label} className="flex items-center justify-between">
+                          <span className="text-sm text-foreground">{setting.label}</span>
+                          <button
+                            className={`w-12 h-6 rounded-full transition-colors ${
+                              setting.enabled ? 'bg-primary' : 'bg-gray-300'
+                            }`}
+                          >
+                            <div className={`w-5 h-5 bg-white rounded-full transition-transform ${
+                              setting.enabled ? 'translate-x-6' : 'translate-x-0.5'
+                            }`} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Security Settings */}
+                  <div>
+                    <h3 className="font-semibold text-foreground mb-4">Security</h3>
+                    <div className="space-y-3">
+                      <button className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:bg-secondary/50">
+                        <div className="flex items-center gap-3">
+                          <Shield className="w-5 h-5 text-muted-foreground" />
+                          <span className="text-sm text-foreground">Two-Factor Authentication</span>
+                        </div>
+                        <span className="text-sm text-green-500">Enabled</span>
+                      </button>
+                      <button className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:bg-secondary/50">
+                        <div className="flex items-center gap-3">
+                          <Key className="w-5 h-5 text-muted-foreground" />
+                          <span className="text-sm text-foreground">Change Admin Password</span>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </motion.div>
           )}

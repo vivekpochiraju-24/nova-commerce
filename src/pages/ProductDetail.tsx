@@ -4,9 +4,10 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Heart, ShoppingCart, Star, Minus, Plus, Truck, Shield, RotateCcw } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { products } from '@/data/products';
-import { useCart } from '@/context/CartContext';
+import { useProduct } from '@/context/ProductContext';
+import { useUserCart } from '@/context/UserCartContext';
 import { useWishlist } from '@/context/WishlistContext';
+import { useAuth } from '@/context/AuthContext';
 import NeonButton from '@/components/ui/NeonButton';
 import ProductCard from '@/components/ProductCard';
 import { toast } from 'sonner';
@@ -15,8 +16,10 @@ const ProductDetail: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [quantity, setQuantity] = useState(1);
-  const { addToCart } = useCart();
+  const { addToCart } = useUserCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const { user } = useAuth();
+  const { getProductById, products } = useProduct();
 
   const product = products.find((p) => p.id === id);
   const relatedProducts = products
@@ -54,7 +57,6 @@ const ProductDetail: React.FC = () => {
     for (let i = 0; i < quantity; i++) {
       addToCart(product);
     }
-    toast.success(`${quantity} x ${product.name} added to cart!`);
   };
 
   const handleBuyNow = () => {
@@ -65,6 +67,12 @@ const ProductDetail: React.FC = () => {
   };
 
   const handleWishlistToggle = () => {
+    if (!user) {
+      toast.error('Please login to add products to wishlist');
+      navigate('/login');
+      return;
+    }
+    
     if (inWishlist) {
       removeFromWishlist(product.id);
       toast.info('Removed from wishlist');

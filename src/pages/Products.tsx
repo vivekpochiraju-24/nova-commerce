@@ -5,12 +5,14 @@ import { Search, Filter, Grid, List, X } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
-import { products, categories } from '@/data/products';
+import { useProduct } from '@/context/ProductContext';
+import { categories } from '@/data/products';
 import NeonButton from '@/components/ui/NeonButton';
 
 const Products: React.FC = () => {
   const [searchParams] = useSearchParams();
   const initialSearch = searchParams.get('search') || '';
+  const { products } = useProduct();
   
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [selectedCategory, setSelectedCategory] = useState('All');

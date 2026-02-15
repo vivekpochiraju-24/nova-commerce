@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, ShoppingCart, Heart, User, Menu, X, Store } from 'lucide-react';
-import { useCart } from '@/context/CartContext';
+import { Search, ShoppingCart, Heart, User, Menu, X, Store, LogOut } from 'lucide-react';
+import { useUserCart } from '@/context/UserCartContext';
 import { useWishlist } from '@/context/WishlistContext';
+import { useAuth } from '@/context/AuthContext';
 import NeonButton from './ui/NeonButton';
 
 const Header: React.FC = () => {
@@ -11,8 +12,9 @@ const Header: React.FC = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
-  const { totalItems: cartItems } = useCart();
+  const { totalItems: cartItems } = useUserCart();
   const { totalItems: wishlistItems } = useWishlist();
+  const { user, logout } = useAuth();
 
   const navItems = [
     { name: 'Home', href: '/' },
@@ -28,6 +30,11 @@ const Header: React.FC = () => {
       setSearchQuery('');
       setIsSearchOpen(false);
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
   };
 
   return (
@@ -125,13 +132,35 @@ const Header: React.FC = () => {
                 </motion.div>
               </Link>
 
-              {/* Admin Link */}
-              <Link to="/admin" className="hidden sm:block">
-                <NeonButton variant="primary" size="sm">
-                  <User className="w-4 h-4" />
-                  Admin
-                </NeonButton>
-              </Link>
+              {/* User Actions */}
+              {user ? (
+                <div className="flex items-center gap-2">
+                  {user.isAdmin && (
+                    <Link to="/admin" className="hidden sm:block">
+                      <NeonButton variant="primary" size="sm">
+                        <User className="w-4 h-4" />
+                        Admin
+                      </NeonButton>
+                    </Link>
+                  )}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleLogout}
+                    className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span className="text-sm font-medium">Logout</span>
+                  </motion.button>
+                </div>
+              ) : (
+                <Link to="/login" className="hidden sm:block">
+                  <NeonButton variant="primary" size="sm">
+                    <User className="w-4 h-4" />
+                    Login
+                  </NeonButton>
+                </Link>
+              )}
 
               {/* Mobile Menu Toggle */}
               <motion.button
@@ -202,12 +231,37 @@ const Header: React.FC = () => {
                     <Heart className="w-4 h-4" /> Wishlist ({wishlistItems})
                   </div>
                 </Link>
-                <Link to="/admin" onClick={() => setIsMenuOpen(false)}>
-                  <NeonButton variant="primary" className="w-full">
-                    <User className="w-4 h-4" />
-                    Admin Dashboard
-                  </NeonButton>
-                </Link>
+                {user ? (
+                  <>
+                    {user.isAdmin && (
+                      <Link to="/admin" onClick={() => setIsMenuOpen(false)}>
+                        <NeonButton variant="primary" className="w-full">
+                          <User className="w-4 h-4" />
+                          Admin Dashboard
+                        </NeonButton>
+                      </Link>
+                    )}
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        handleLogout();
+                        setIsMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-3 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors font-medium"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Logout ({user.name})
+                    </motion.button>
+                  </>
+                ) : (
+                  <Link to="/login" onClick={() => setIsMenuOpen(false)}>
+                    <NeonButton variant="primary" className="w-full">
+                      <User className="w-4 h-4" />
+                      Login / Register
+                    </NeonButton>
+                  </Link>
+                )}
               </div>
             </nav>
           </motion.div>
