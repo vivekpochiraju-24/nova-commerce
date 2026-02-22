@@ -124,6 +124,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
     setToken(null);
     delete axios.defaults.headers.common['Authorization'];
+    
+    // Clear all localStorage data
+    localStorage.removeItem('vebstore_token');
+    localStorage.removeItem('vebstore_user');
+    localStorage.removeItem('vebstore_orders');
+    
     toast.success('Logged out successfully');
   };
 

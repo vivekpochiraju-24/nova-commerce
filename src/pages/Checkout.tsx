@@ -8,14 +8,9 @@ import { useUserCart } from '@/context/UserCartContext';
 import { useOrder } from '@/context/OrderContext';
 import { useAuth } from '@/context/AuthContext';
 import NeonButton from '@/components/ui/NeonButton';
+import RazorpayPayment from '@/components/RazorpayPayment';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
-
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
+import axios from 'axios';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -25,7 +20,7 @@ const Checkout: React.FC = () => {
   const [selectedPayment, setSelectedPayment] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(true);
-  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
+  const [showRazorpay, setShowRazorpay] = useState(false);
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
     email: '',
@@ -46,20 +41,6 @@ const Checkout: React.FC = () => {
       address: user.address || ''
     });
   }, [user, navigate]);
-
-  // Load Razorpay SDK
-  useEffect(() => {
-    if (document.getElementById('razorpay-sdk')) {
-      setRazorpayLoaded(true);
-      return;
-    }
-    const script = document.createElement('script');
-    script.id = 'razorpay-sdk';
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.onload = () => setRazorpayLoaded(true);
-    script.onerror = () => toast.error('Failed to load payment gateway');
-    document.body.appendChild(script);
-  }, []);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -84,6 +65,108 @@ const Checkout: React.FC = () => {
     }
   ];
 
+  const handlePaymentSuccess = async (response: any) => {
+    try {
+      // Verify payment on backend
+      const verifyResponse = await axios.post('http://localhost:3001/api/razorpay/verify-payment', {
+        razorpay_order_id: response.razorpay_order_id,
+        razorpay_payment_id: response.razorpay_payment_id,
+        razorpay_signature: response.razorpay_signature,
+        orderId: response.orderId
+      });
+
+      if (verifyResponse.data.success) {
+        // Create order after successful payment
+        const orderData = {
+          customerName: customerInfo.name,
+          customerEmail: customerInfo.email,
+          customerPhone: customerInfo.phone,
+          customerAddress: customerInfo.address,
+          items: items.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            image: item.image
+          })),
+          totalAmount: response.amount,
+          paymentMethod: 'Razorpay (Online)',
+          transactionId: response.razorpay_payment_id,
+        };
+
+        const newOrder = addOrder(orderData);
+        toast.success(`🎉 Payment successful! Order #${newOrder.id} placed!`);
+        clearCart();
+        navigate('/order-success', {
+          state: {
+            orderId: newOrder.id,
+            totalAmount: response.amount,
+            paymentMethod: 'Razorpay (Online)',
+            transactionId: response.razorpay_payment_id,
+          }
+        });
+      } else {
+        toast.error('Payment verification failed. Contact support.');
+      }
+    } catch (error) {
+      console.error('Payment verification error:', error);
+      toast.error('Payment verification failed. Contact support.');
+    } finally {
+      setIsProcessing(false);
+      setShowRazorpay(false);
+    }
+  };
+
+  const handlePaymentFailure = (error: any) => {
+    console.error('Payment failed:', error);
+    toast.error(error.message || 'Payment failed. Please try again.');
+    setIsProcessing(false);
+    setShowRazorpay(false);
+  };
+
+  const handlePaymentClose = () => {
+    setIsProcessing(false);
+    setShowRazorpay(false);
+    toast.info('Payment cancelled');
+  };
+
+  const handleCODOrder = async (totalAmount: number) => {
+    setIsProcessing(true);
+    try {
+      const orderData = {
+        customerName: customerInfo.name,
+        customerEmail: customerInfo.email,
+        customerPhone: customerInfo.phone,
+        customerAddress: customerInfo.address,
+        items: items.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          image: item.image
+        })),
+        totalAmount,
+        paymentMethod: 'Cash on Delivery',
+        transactionId: 'COD_' + Date.now(),
+      };
+
+      const newOrder = addOrder(orderData);
+      toast.success(`🎉 Order placed successfully! Order #${newOrder.id}`);
+      clearCart();
+      navigate('/order-success', {
+        state: {
+          orderId: newOrder.id,
+          totalAmount,
+          paymentMethod: 'Cash on Delivery',
+          transactionId: orderData.transactionId,
+        }
+      });
+    } catch (error) {
+      console.error('COD order error:', error);
+      toast.error('Failed to place order. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handlePlaceOrder = async () => {
     if (!selectedPayment) {
       toast.error('Please select a payment method');
@@ -106,287 +189,266 @@ const Checkout: React.FC = () => {
     }
 
     // Razorpay online payment
-    if (!razorpayLoaded || !window.Razorpay) {
-      toast.error('Payment gateway is loading, please wait...');
-      return;
-    }
-
     setIsProcessing(true);
-
-    try {
-      // Create Razorpay order via edge function
-      const { data, error } = await supabase.functions.invoke('razorpay', {
-        body: {
-          action: 'create-order',
-          amount: totalAmount,
-          currency: 'INR',
-          receipt: `order_${Date.now()}`
-        }
-      });
-
-      if (error || !data?.order) {
-        toast.error(data?.error || 'Failed to create payment order');
-        setIsProcessing(false);
-        return;
-      }
-
-      const { order, key_id } = data;
-
-      // Open Razorpay checkout
-      const options = {
-        key: key_id,
-        amount: order.amount,
-        currency: order.currency,
-        name: 'VEB Store',
-        description: `Order of ${items.length} item(s)`,
-        order_id: order.id,
-        prefill: {
-          name: customerInfo.name,
-          email: customerInfo.email,
-          contact: customerInfo.phone,
-        },
-        theme: { color: '#7c3aed' },
-        handler: async (response: any) => {
-          // Verify payment
-          const { data: verifyData, error: verifyError } = await supabase.functions.invoke('razorpay', {
-            body: {
-              action: 'verify-payment',
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            }
-          });
-
-          if (verifyError || !verifyData?.verified) {
-            toast.error('Payment verification failed. Contact support.');
-            setIsProcessing(false);
-            return;
-          }
-
-          // Payment verified - create order
-          const orderData = {
-            customerName: customerInfo.name,
-            customerEmail: customerInfo.email,
-            customerPhone: customerInfo.phone,
-            customerAddress: customerInfo.address,
-            items: items.map(item => ({
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price,
-              image: item.image
-            })),
-            totalAmount,
-            paymentMethod: 'Razorpay (Online)',
-            transactionId: response.razorpay_payment_id,
-          };
-
-          const newOrder = addOrder(orderData);
-          toast.success(`🎉 Payment successful! Order #${newOrder.id} placed!`);
-          clearCart();
-          navigate('/order-success', {
-            state: {
-              orderId: newOrder.id,
-              totalAmount,
-              paymentMethod: 'Razorpay (Online)',
-              transactionId: response.razorpay_payment_id,
-            }
-          });
-        },
-        modal: {
-          ondismiss: () => {
-            setIsProcessing(false);
-            toast.info('Payment cancelled');
-          }
-        }
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', (response: any) => {
-        toast.error(`Payment failed: ${response.error.description}`);
-        setIsProcessing(false);
-      });
-      rzp.open();
-    } catch (error) {
-      console.error('Payment error:', error);
-      toast.error('Something went wrong. Please try again.');
-      setIsProcessing(false);
-    }
+    setShowRazorpay(true);
   };
 
-  const handleCODOrder = (totalAmount: number) => {
-    setIsProcessing(true);
-    const orderData = {
-      customerName: customerInfo.name,
-      customerEmail: customerInfo.email,
-      customerPhone: customerInfo.phone,
-      customerAddress: customerInfo.address,
-      items: items.map(item => ({
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price,
-        image: item.image
-      })),
-      totalAmount,
-      paymentMethod: 'Cash on Delivery',
-      transactionId: `COD_${Date.now()}`,
-    };
-
-    const newOrder = addOrder(orderData);
-    toast.success(`🎉 Order #${newOrder.id} placed successfully!`);
-    clearCart();
-    setTimeout(() => {
-      navigate('/order-success', {
-        state: {
-          orderId: newOrder.id,
-          totalAmount,
-          paymentMethod: 'Cash on Delivery',
-          transactionId: orderData.transactionId,
-        }
-      });
-    }, 1000);
-  };
+  const totalAmount = Math.round(totalPrice * 1.18);
+  const orderId = 'order_' + Date.now();
 
   if (items.length === 0) {
-    navigate('/cart');
-    return null;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+        <Header />
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold mb-4">Your cart is empty</h1>
+            <NeonButton onClick={() => navigate('/products')}>
+              Continue Shopping
+            </NeonButton>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       <Header />
-      <main className="pt-24 pb-12">
-        <div className="container mx-auto px-4 max-w-4xl">
-          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="mb-6">
-            <button onClick={() => navigate('/cart')} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+      
+      <div className="container mx-auto px-4 py-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-4xl mx-auto"
+        >
+          {/* Header */}
+          <div className="flex items-center gap-4 mb-8">
+            <button
+              onClick={() => navigate('/cart')}
+              className="p-2 rounded-lg hover:bg-secondary transition-colors"
+            >
               <ArrowLeft className="w-5 h-5" />
-              Back to Cart
             </button>
-          </motion.div>
+            <h1 className="text-3xl font-bold">Checkout</h1>
+          </div>
 
-          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-3xl md:text-4xl font-bold text-foreground mb-8">
-            Checkout
-          </motion.h1>
-
-          <div className="grid lg:grid-cols-2 gap-8">
-            {/* Left Column */}
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-              {/* Customer Info */}
-              <div className="p-6 rounded-2xl bg-card border border-border">
-                <h2 className="text-xl font-bold text-foreground mb-4">Customer Information</h2>
-                <div className="space-y-4">
-                  {[
-                    { label: 'Full Name', key: 'name', type: 'text', placeholder: 'John Doe' },
-                    { label: 'Email Address', key: 'email', type: 'email', placeholder: 'john@example.com' },
-                    { label: 'Phone Number', key: 'phone', type: 'tel', placeholder: '+91 98765 43210' },
-                  ].map(field => (
-                    <div key={field.key}>
-                      <label className="block text-sm font-medium text-foreground mb-2">{field.label} *</label>
-                      <input
-                        type={field.type}
-                        value={customerInfo[field.key as keyof typeof customerInfo]}
-                        onChange={(e) => setCustomerInfo({ ...customerInfo, [field.key]: e.target.value })}
-                        className="w-full px-4 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                        placeholder={field.placeholder}
-                      />
-                    </div>
-                  ))}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Customer Information & Payment */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Customer Information */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="bg-white rounded-2xl border border-border p-6 shadow-sm"
+              >
+                <h2 className="text-xl font-bold mb-6">Customer Information</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">Delivery Address *</label>
+                    <label className="block text-sm font-medium mb-2">Full Name</label>
+                    <input
+                      type="text"
+                      value={customerInfo.name}
+                      onChange={(e) => setCustomerInfo(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-4 py-3 rounded-lg border border-border focus:border-primary outline-none transition-colors"
+                      placeholder="John Doe"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Email</label>
+                    <input
+                      type="email"
+                      value={customerInfo.email}
+                      onChange={(e) => setCustomerInfo(prev => ({ ...prev, email: e.target.value }))}
+                      className="w-full px-4 py-3 rounded-lg border border-border focus:border-primary outline-none transition-colors"
+                      placeholder="john@example.com"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Phone Number</label>
+                    <input
+                      type="tel"
+                      value={customerInfo.phone}
+                      onChange={(e) => setCustomerInfo(prev => ({ ...prev, phone: e.target.value }))}
+                      className="w-full px-4 py-3 rounded-lg border border-border focus:border-primary outline-none transition-colors"
+                      placeholder="+91 98765 43210"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Delivery Address</label>
                     <textarea
                       value={customerInfo.address}
-                      onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })}
-                      className="w-full px-4 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                      onChange={(e) => setCustomerInfo(prev => ({ ...prev, address: e.target.value }))}
+                      className="w-full px-4 py-3 rounded-lg border border-border focus:border-primary outline-none transition-colors resize-none"
                       rows={3}
-                      placeholder="123 Main Street, City, State - 123456"
+                      placeholder="123 Main St, City, State - 123456"
                     />
                   </div>
                 </div>
-              </div>
+              </motion.div>
 
               {/* Payment Methods */}
-              <div className="p-6 rounded-2xl bg-card border border-border">
-                <h2 className="text-xl font-bold text-foreground mb-4">Payment Method</h2>
-                <div className="space-y-3">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-white rounded-2xl border border-border p-6 shadow-sm"
+              >
+                <h2 className="text-xl font-bold mb-6">Payment Method</h2>
+                
+                <div className="space-y-4">
                   {paymentMethods.map((method) => (
-                    <div
+                    <motion.div
                       key={method.id}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                       onClick={() => setSelectedPayment(method.id)}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        selectedPayment === method.id ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
+                      className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                        selectedPayment === method.id
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/50'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="flex-shrink-0">{method.icon}</div>
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center">
+                          {method.icon}
+                        </div>
                         <div className="flex-1">
-                          <h3 className="font-semibold text-foreground">{method.name}</h3>
+                          <h3 className="font-semibold">{method.name}</h3>
                           <p className="text-sm text-muted-foreground">{method.description}</p>
                         </div>
-                        {selectedPayment === method.id && <CheckCircle className="w-5 h-5 text-primary" />}
+                        <div className={`w-5 h-5 rounded-full border-2 ${
+                          selectedPayment === method.id
+                            ? 'border-primary bg-primary'
+                            : 'border-muted-foreground'
+                        }`}>
+                          {selectedPayment === method.id && (
+                            <div className="w-full h-full rounded-full bg-white scale-50"></div>
+                          )}
+                        </div>
                       </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* Terms */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+                className="bg-white rounded-2xl border border-border p-6 shadow-sm"
+              >
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    className="mt-1 w-4 h-4 text-primary border-border rounded focus:ring-primary"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    I agree to the Terms & Conditions and understand that my order will be processed according to the selected payment method.
+                  </span>
+                </label>
+              </motion.div>
+            </div>
+
+            {/* Order Summary */}
+            <div className="space-y-6">
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="bg-white rounded-2xl border border-border p-6 shadow-sm sticky top-24"
+              >
+                <h2 className="text-xl font-bold mb-6">Order Summary</h2>
+                
+                <div className="space-y-4 mb-6">
+                  {items.map((item, index) => (
+                    <div key={index} className="flex items-center gap-4">
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-16 h-16 rounded-lg object-cover"
+                      />
+                      <div className="flex-1">
+                        <h3 className="font-medium">{item.name}</h3>
+                        <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                      </div>
+                      <p className="font-semibold">{formatPrice(item.price * item.quantity)}</p>
                     </div>
                   ))}
                 </div>
-              </div>
-            </motion.div>
-
-            {/* Order Summary */}
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="lg:sticky lg:top-28 h-fit">
-              <div className="p-6 rounded-2xl bg-card border border-border space-y-6">
-                <h2 className="text-xl font-bold text-foreground">Order Summary</h2>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Subtotal ({items.reduce((s, i) => s + i.quantity, 0)} items)</span>
+                
+                <div className="border-t border-border pt-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Subtotal</span>
                     <span>{formatPrice(totalPrice)}</span>
                   </div>
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Shipping</span>
-                    <span className="text-green-500">Free</span>
-                  </div>
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Tax (18%)</span>
+                  <div className="flex justify-between text-sm">
+                    <span>Taxes (18%)</span>
                     <span>{formatPrice(totalPrice * 0.18)}</span>
                   </div>
-                  <hr className="border-border" />
-                  <div className="flex justify-between text-xl font-bold text-foreground">
+                  <div className="flex justify-between text-lg font-bold pt-2 border-t border-border">
                     <span>Total</span>
-                    <span>{formatPrice(totalPrice * 1.18)}</span>
+                    <span className="text-primary">{formatPrice(totalAmount)}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                  <Shield className="w-5 h-5 text-green-600" />
-                  <span className="text-sm text-green-700 dark:text-green-300">Secure & Encrypted Payment</span>
-                </div>
-
-                <NeonButton variant="primary" size="lg" className="w-full" onClick={handlePlaceOrder} disabled={isProcessing}>
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                      Processing...
-                    </>
-                  ) : (
-                    selectedPayment === 'razorpay' ? 'Pay Now' : 'Place Order'
-                  )}
-                </NeonButton>
-
-                <div className="mt-4 pt-4 border-t border-border">
-                  <label className="flex items-start gap-2 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      className="mt-1 rounded border-border text-primary focus:ring-primary"
-                      checked={termsAccepted}
-                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                {/* Razorpay Payment Component */}
+                {showRazorpay && (
+                  <div className="mt-6">
+                    <RazorpayPayment
+                      amount={totalAmount}
+                      orderId={orderId}
+                      customerInfo={customerInfo}
+                      onSuccess={handlePaymentSuccess}
+                      onFailure={handlePaymentFailure}
+                      onClose={handlePaymentClose}
                     />
-                    <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-                      I agree to the Terms & Conditions and acknowledge that my order will be processed according to these terms.
-                    </span>
-                  </label>
+                  </div>
+                )}
+
+                {/* Place Order Button */}
+                {!showRazorpay && (
+                  <NeonButton
+                    onClick={handlePlaceOrder}
+                    disabled={isProcessing || !selectedPayment}
+                    className="w-full mt-6"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      'Place Order'
+                    )}
+                  </NeonButton>
+                )}
+              </motion.div>
+
+              {/* Security Badge */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-white rounded-2xl border border-border p-4 shadow-sm"
+              >
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <Shield className="w-5 h-5 text-green-600" />
+                  <span>Secure Payment Powered by Razorpay</span>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            </div>
           </div>
-        </div>
-      </main>
+        </motion.div>
+      </div>
+
       <Footer />
     </div>
   );

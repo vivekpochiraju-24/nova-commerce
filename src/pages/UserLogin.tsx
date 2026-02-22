@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock, ArrowRight, User, Store, Edit3, Settings, ShoppingBag, Heart, Package, UserCircle, HelpCircle, LogIn } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, ArrowRight, User, Store, Edit3, Settings, ShoppingBag, Heart, Package, UserCircle, HelpCircle, LogIn, Sparkles, Gift, Star, Zap, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 
@@ -77,230 +77,295 @@ const UserLogin: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900/20 via-purple-800/10 to-pink-900/20 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-pink-900 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          className="absolute -top-10 -left-10 w-40 h-40 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full blur-3xl opacity-20"
+        />
+        <motion.div
+          animate={{ rotate: -360 }}
+          transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+          className="absolute -bottom-10 -right-10 w-60 h-60 bg-gradient-to-r from-pink-600 to-rose-600 rounded-full blur-3xl opacity-20"
+        />
+        <motion.div
+          animate={{ y: [0, -50, 0] }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-gradient-to-r from-cyan-600 to-blue-600 rounded-full blur-3xl opacity-10"
+        />
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md relative z-10"
       >
-        <div className="bg-card/90 backdrop-blur-lg rounded-3xl border border-blue-500/20 p-8 shadow-2xl shadow-blue-500/10">
+        {/* Customer Badge */}
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+          className="text-center mb-8"
+        >
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 text-white text-sm font-semibold mb-4">
+            <Sparkles className="w-4 h-4" />
+            CUSTOMER PORTAL
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1, duration: 0.3 }}
+          className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-8 shadow-2xl shadow-black/20"
+        >
           {/* Header */}
           <div className="text-center mb-8">
-            <Link to="/" className="inline-flex items-center gap-2 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
-                <Store className="w-7 h-7 text-white" />
-              </div>
-              <span className="text-xl font-bold text-foreground">VEB Store</span>
-            </Link>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 mb-4">
-              <User className="w-4 h-4 text-blue-500" />
-              <span className="text-sm font-medium text-blue-500">Customer Portal</span>
-            </div>
-            <h1 className="text-2xl font-bold text-foreground mb-2">Welcome Back</h1>
-            <p className="text-muted-foreground">Sign in to your customer account</p>
+            <motion.div
+              initial={{ rotate: -180 }}
+              animate={{ rotate: 0 }}
+              transition={{ delay: 0.3, duration: 0.5, type: "spring" }}
+              className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 mb-4 shadow-lg shadow-blue-500/50"
+            >
+              <Store className="w-10 h-10 text-white" />
+            </motion.div>
+            <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
+            <p className="text-gray-300">Sign in to your customer account</p>
           </div>
 
           {/* Features */}
-          <div className="mb-6 grid grid-cols-3 gap-2">
-            <div className="text-center p-2 rounded-lg bg-blue-500/5 border border-blue-500/10">
-              <div className="w-8 h-8 mx-auto mb-1 rounded-full bg-blue-500/20 flex items-center justify-center">
-                <span className="text-xs text-blue-500">🛍️</span>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="mb-6 grid grid-cols-3 gap-2"
+          >
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="text-center p-2 rounded-xl bg-blue-500/20 border border-blue-500/30"
+            >
+              <div className="w-8 h-8 mx-auto mb-1 rounded-full bg-blue-500/30 flex items-center justify-center">
+                <ShoppingBag className="w-4 h-4 text-blue-400" />
               </div>
-              <span className="text-xs text-muted-foreground">Shop</span>
-            </div>
-            <div className="text-center p-2 rounded-lg bg-purple-500/5 border border-purple-500/10">
-              <div className="w-8 h-8 mx-auto mb-1 rounded-full bg-purple-500/20 flex items-center justify-center">
-                <span className="text-xs text-purple-500">📦</span>
+              <span className="text-xs text-gray-300">Shop</span>
+            </motion.div>
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="text-center p-2 rounded-xl bg-purple-500/20 border border-purple-500/30"
+            >
+              <div className="w-8 h-8 mx-auto mb-1 rounded-full bg-purple-500/30 flex items-center justify-center">
+                <Package className="w-4 h-4 text-purple-400" />
               </div>
-              <span className="text-xs text-muted-foreground">Orders</span>
-            </div>
-            <div className="text-center p-2 rounded-lg bg-pink-500/5 border border-pink-500/10">
-              <div className="w-8 h-8 mx-auto mb-1 rounded-full bg-pink-500/20 flex items-center justify-center">
-                <span className="text-xs text-pink-500">❤️</span>
+              <span className="text-xs text-gray-300">Orders</span>
+            </motion.div>
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="text-center p-2 rounded-xl bg-pink-500/20 border border-pink-500/30"
+            >
+              <div className="w-8 h-8 mx-auto mb-1 rounded-full bg-pink-500/30 flex items-center justify-center">
+                <Heart className="w-4 h-4 text-pink-400" />
               </div>
-              <span className="text-xs text-muted-foreground">Wishlist</span>
+              <span className="text-xs text-gray-300">Wishlist</span>
+            </motion.div>
+          </motion.div>
+
+          {/* Benefits */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.5 }}
+            className="mb-6 p-4 rounded-xl bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Gift className="w-4 h-4 text-green-400" />
+              <span className="text-sm font-medium text-green-400">Member Benefits</span>
             </div>
-          </div>
+            <div className="grid grid-cols-2 gap-2 text-xs text-gray-300">
+              <div className="flex items-center gap-1">
+                <Star className="w-3 h-3 text-yellow-400" />
+                <span>Rewards Points</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Zap className="w-3 h-3 text-blue-400" />
+                <span>Exclusive Deals</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Package className="w-3 h-3 text-purple-400" />
+                <span>Fast Delivery</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Heart className="w-3 h-3 text-pink-400" />
+                <span>Wishlist</span>
+              </div>
+            </div>
+          </motion.div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Email Address</label>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+            >
+              <label className="block text-sm font-medium text-gray-200 mb-2">Email Address</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
                   required
-                  className={`w-full pl-11 pr-4 py-3 rounded-xl bg-secondary border ${
-                    errors.email ? 'border-blue-500' : 'border-border'
-                  } focus:border-blue-500 outline-none transition-colors`}
+                  className={`w-full pl-11 pr-4 py-3 rounded-xl bg-white/10 border text-white placeholder-gray-400 backdrop-blur-sm ${
+                    errors.email ? 'border-red-500' : 'border-white/20'
+                  } focus:border-blue-500 focus:bg-white/20 outline-none transition-all duration-300`}
                   placeholder="you@example.com"
                 />
               </div>
-              {errors.email && <p className="text-blue-500 text-xs mt-1">{errors.email}</p>}
-            </div>
+              {errors.email && (
+                <motion.p
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-red-400 text-xs mt-1 flex items-center gap-1"
+                >
+                  <AlertTriangle className="w-3 h-3" />
+                  {errors.email}
+                </motion.p>
+              )}
+            </motion.div>
 
             {/* Password */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Password</label>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+            >
+              <label className="block text-sm font-medium text-gray-200 mb-2">Password</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
                   required
-                  className={`w-full pl-11 pr-12 py-3 rounded-xl bg-secondary border ${
-                    errors.password ? 'border-blue-500' : 'border-border'
-                  } focus:border-blue-500 outline-none transition-colors`}
+                  className={`w-full pl-11 pr-12 py-3 rounded-xl bg-white/10 border text-white placeholder-gray-400 backdrop-blur-sm ${
+                    errors.password ? 'border-red-500' : 'border-white/20'
+                  } focus:border-blue-500 focus:bg-white/20 outline-none transition-all duration-300`}
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              {errors.password && <p className="text-blue-500 text-xs mt-1">{errors.password}</p>}
-            </div>
+              {errors.password && (
+                <motion.p
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-red-400 text-xs mt-1 flex items-center gap-1"
+                >
+                  <AlertTriangle className="w-3 h-3" />
+                  {errors.password}
+                </motion.p>
+              )}
+            </motion.div>
 
-            <button
+            <motion.button
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8 }}
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:from-blue-700 hover:to-purple-700 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25"
             >
               {isLoading ? (
-                'Signing In...'
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Signing In...
+                </>
               ) : (
                 <>
+                  <LogIn className="w-5 h-5" />
                   Sign In to Shop
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
-            </button>
+            </motion.button>
 
-            {/* Additional Action Buttons */}
-            <div className="grid grid-cols-2 gap-3 mt-4">
+            {/* Quick Actions */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.9 }}
+              className="grid grid-cols-2 gap-3 mt-4"
+            >
               <Link 
                 to="/products"
-                className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-green-500 text-white font-medium hover:bg-green-600 transition-colors"
+                className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30 transition-colors"
               >
                 <ShoppingBag className="w-4 h-4" />
                 Browse Products
               </Link>
               <Link 
                 to="/wishlist"
-                className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-pink-500 text-white font-medium hover:bg-pink-600 transition-colors"
+                className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-pink-500/20 text-pink-400 border border-pink-500/30 hover:bg-pink-500/30 transition-colors"
               >
                 <Heart className="w-4 h-4" />
                 View Wishlist
               </Link>
-            </div>
-
-            {/* Quick Access Buttons */}
-            <div className="grid grid-cols-3 gap-2 mt-3">
-              <Link 
-                to="/orders"
-                className="flex flex-col items-center gap-1 py-2 px-3 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors"
-              >
-                <Package className="w-4 h-4 text-blue-600" />
-                <span className="text-xs text-blue-600">Orders</span>
-              </Link>
-              <Link 
-                to="/profile"
-                className="flex flex-col items-center gap-1 py-2 px-3 rounded-lg bg-purple-50 border border-purple-200 hover:bg-purple-100 transition-colors"
-              >
-                <UserCircle className="w-4 h-4 text-purple-600" />
-                <span className="text-xs text-purple-600">Profile</span>
-              </Link>
-              <Link 
-                to="/help"
-                className="flex flex-col items-center gap-1 py-2 px-3 rounded-lg bg-orange-50 border border-orange-200 hover:bg-orange-100 transition-colors"
-              >
-                <HelpCircle className="w-4 h-4 text-orange-600" />
-                <span className="text-xs text-orange-600">Help</span>
-              </Link>
-            </div>
+            </motion.div>
           </form>
 
           {/* Register Link */}
-          <div className="mt-6 text-center">
-            <p className="text-muted-foreground">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1 }}
+            className="mt-6 text-center"
+          >
+            <p className="text-gray-300">
               Don't have an account?{' '}
-              <Link to="/register" className="text-blue-500 hover:underline font-medium">
+              <Link to="/register" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
                 Create Account
               </Link>
             </p>
-          </div>
-
-          {/* Utility Buttons */}
-          <div className="mt-4 space-y-2">
-            <div className="flex gap-2">
-              <Link 
-                to="/forgot-password"
-                className="flex-1 text-center py-2 px-4 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium"
-              >
-                Forgot Password?
-              </Link>
-              <Link 
-                to="/guest-checkout"
-                className="flex-1 text-center py-2 px-4 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium"
-              >
-                Guest Checkout
-              </Link>
-            </div>
-            <Link 
-              to="/track-order"
-              className="w-full text-center py-2 px-4 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
-            >
-              <Package className="w-4 h-4" />
-              Track Order Without Login
-            </Link>
-          </div>
+          </motion.div>
 
           {/* Admin Access Link */}
-          <div className="mt-4 text-center">
-            <p className="text-muted-foreground">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.1 }}
+            className="mt-4 text-center"
+          >
+            <p className="text-gray-300">
               Are you an admin?{' '}
-              <Link to="/admin-login" className="text-blue-500 hover:underline font-medium">
+              <Link to="/admin-login" className="text-purple-400 hover:text-purple-300 font-medium transition-colors">
                 Admin Portal
               </Link>
             </p>
-          </div>
+          </motion.div>
+        </motion.div>
 
-          {/* Profile Quick Actions */}
-          <div className="mt-6 p-4 rounded-xl bg-blue-500/5 border border-blue-500/10">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium text-foreground">Quick Profile Access</h3>
-              <Settings className="w-4 h-4 text-blue-500" />
-            </div>
-            <div className="space-y-2">
-              <Link 
-                to="/user-dashboard"
-                className="flex items-center gap-2 p-2 rounded-lg bg-white border border-blue-500/20 hover:bg-blue-50 transition-colors"
-              >
-                <User className="w-4 h-4 text-blue-500" />
-                <span className="text-sm text-foreground">View Dashboard</span>
-                <ArrowRight className="w-3 h-3 text-blue-500 ml-auto" />
-              </Link>
-              <Link 
-                to="/profile-edit"
-                className="flex items-center gap-2 p-2 rounded-lg bg-white border border-purple-500/20 hover:bg-purple-50 transition-colors"
-              >
-                <Edit3 className="w-4 h-4 text-purple-500" />
-                <span className="text-sm text-foreground">Edit Profile</span>
-                <ArrowRight className="w-3 h-3 text-purple-500 ml-auto" />
-              </Link>
-            </div>
-          </div>
-        </div>
+        {/* Footer */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.2 }}
+          className="text-center mt-8"
+        >
+          <p className="text-xs text-gray-400">
+            © 2024 VEB Store. All rights reserved.
+          </p>
+        </motion.div>
       </motion.div>
     </div>
   );

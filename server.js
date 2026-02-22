@@ -3,10 +3,18 @@ import { createTransport, createTestAccount } from 'nodemailer';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
 
 const app = express();
 const PORT = 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'vebstore-secret-key-2024';
+
+// Initialize Razorpay
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_YourTestKeyHere',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || 'YourTestSecretHere',
+});
 
 // Middleware
 app.use(cors());
@@ -239,6 +247,131 @@ app.post('/api/orders', (req, res) => {
 // Get all orders (admin only)
 app.get('/api/orders', authenticateToken, requireAdmin, (req, res) => {
   res.json(orders);
+});
+
+// Get user-specific orders
+app.get('/api/orders/user', authenticateToken, (req, res) => {
+  try {
+    const userEmail = req.user.email;
+    const userOrders = orders.filter(order => order.customerEmail === userEmail);
+    res.json(userOrders);
+  } catch (error) {
+    console.error('Error fetching user orders:', error);
+    res.status(500).json({ message: 'Failed to fetch orders' });
+  }
+});
+
+// Update order (add items)
+app.put('/api/orders/:orderId', authenticateToken, (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { items, additionalAmount } = req.body;
+    const userEmail = req.user.email;
+    
+    const orderIndex = orders.findIndex(order => 
+      order.id === orderId && order.customerEmail === userEmail
+    );
+    
+    if (orderIndex === -1) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    // Only allow adding items if order is pending or processing
+    const order = orders[orderIndex];
+    if (order.status === 'shipped' || order.status === 'delivered') {
+      return res.status(400).json({ 
+        message: 'Cannot add items to shipped or delivered orders' 
+      });
+    }
+    
+    // Add new items to the order
+    const newItems = items.map(item => ({
+      ...item,
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9)
+    }));
+    
+    orders[orderIndex].items.push(...newItems);
+    orders[orderIndex].totalAmount += additionalAmount;
+    
+    res.json({ 
+      message: 'Items added to order successfully',
+      order: orders[orderIndex]
+    });
+  } catch (error) {
+    console.error('Error updating order:', error);
+    res.status(500).json({ message: 'Failed to update order' });
+  }
+});
+
+// Cancel order
+app.delete('/api/orders/:orderId', authenticateToken, (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const userEmail = req.user.email;
+    
+    const orderIndex = orders.findIndex(order => 
+      order.id === orderId && order.customerEmail === userEmail
+    );
+    
+    if (orderIndex === -1) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    // Only allow cancellation if order is pending or processing
+    const order = orders[orderIndex];
+    if (order.status === 'shipped' || order.status === 'delivered') {
+      return res.status(400).json({ 
+        message: 'Cannot cancel shipped or delivered orders' 
+      });
+    }
+    
+    orders[orderIndex].status = 'cancelled';
+    
+    res.json({ 
+      message: 'Order cancelled successfully',
+      order: orders[orderIndex]
+    });
+  } catch (error) {
+    console.error('Error cancelling order:', error);
+    res.status(500).json({ message: 'Failed to cancel order' });
+  }
+});
+
+// Get products for order management
+app.get('/api/products', (req, res) => {
+  try {
+    // Return available products that can be added to orders
+    const availableProducts = [
+      {
+        id: 'prod1',
+        name: 'Wireless Bluetooth Headphones',
+        price: 2999,
+        image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&q=80',
+        category: 'Electronics',
+        inStock: true
+      },
+      {
+        id: 'prod2',
+        name: 'Smart Watch Series 6',
+        price: 15999,
+        image: 'https://images.unsplash.com/photo-1523275335684-e9466b8e4a3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&q=80',
+        category: 'Electronics',
+        inStock: true
+      },
+      {
+        id: 'prod3',
+        name: 'Laptop Backpack',
+        price: 1899,
+        image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a21?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&q=80',
+        category: 'Accessories',
+        inStock: true
+      }
+    ];
+    res.json(availableProducts);
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    res.status(500).json({ message: 'Failed to fetch products' });
+  }
 });
 
 // Order confirmation email endpoint
@@ -579,6 +712,70 @@ Always be helpful, accurate, and maintain a positive customer service attitude. 
   } catch (error) {
     console.error('Chat error:', error);
     res.status(500).json({ error: 'Failed to process chat request' });
+  }
+});
+
+// Razorpay payment endpoints
+app.post('/api/razorpay/create-order', async (req, res) => {
+  try {
+    const { amount, currency = 'INR', receipt, notes } = req.body;
+
+    const options = {
+      amount: amount,
+      currency: currency,
+      receipt: receipt,
+      notes: notes,
+    };
+
+    const order = await razorpay.orders.create(options);
+    res.json(order);
+  } catch (error) {
+    console.error('Razorpay order creation error:', error);
+    res.status(500).json({ 
+      message: 'Failed to create payment order',
+      error: error.message 
+    });
+  }
+});
+
+app.post('/api/razorpay/verify-payment', async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId } = req.body;
+
+    // Verify payment signature
+    const body = razorpay_order_id + '|' + razorpay_payment_id;
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || 'YourTestSecretHere')
+      .update(body.toString())
+      .digest('hex');
+
+    if (expectedSignature === razorpay_signature) {
+      // Payment is verified, update order status
+      const orderIndex = orders.findIndex(order => order.id === orderId);
+      if (orderIndex !== -1) {
+        orders[orderIndex].status = 'paid';
+        orders[orderIndex].paymentId = razorpay_payment_id;
+        orders[orderIndex].paymentMethod = 'razorpay';
+      }
+
+      res.json({ 
+        success: true,
+        message: 'Payment verified successfully',
+        orderId: orderId
+      });
+    } else {
+      res.status(400).json({ 
+        success: false,
+        message: 'Invalid payment signature' 
+      });
+    }
+  } catch (error) {
+    console.error('Payment verification error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Payment verification failed',
+      error: error.message 
+    });
   }
 });
 

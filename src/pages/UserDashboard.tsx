@@ -29,18 +29,33 @@ import {
   Zap,
   Award,
   Target,
-  BarChart3
+  BarChart3,
+  X,
+  Minus
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useOrder } from '@/context/OrderContext';
 import { toast } from 'sonner';
 import axios from 'axios';
 
 interface Order {
   id: string;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  total: number;
-  date: string;
-  items: number;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  customerAddress: string;
+  items: {
+    name: string;
+    quantity: number;
+    price: number;
+    image?: string;
+  }[];
+  totalAmount: number;
+  paymentMethod: string;
+  transactionId: string;
+  status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  orderDate: string;
+  estimatedDelivery: string;
   products?: {
     id: string;
     name: string;
@@ -87,8 +102,8 @@ interface UserProfile {
 
 const UserDashboard: React.FC = () => {
   const { user, logout } = useAuth();
+  const { orders, getOrdersByCustomer } = useOrder();
   const navigate = useNavigate();
-  const [orders, setOrders] = useState<Order[]>([]);
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
   const [stats, setStats] = useState<UserStats>({
     totalOrders: 0,
@@ -117,6 +132,10 @@ const UserDashboard: React.FC = () => {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [showAddItems, setShowAddItems] = useState(false);
+  const [availableProducts, setAvailableProducts] = useState<any[]>([]);
+  const [selectedProducts, setSelectedProducts] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user) {
@@ -126,41 +145,65 @@ const UserDashboard: React.FC = () => {
     fetchUserData();
   }, [user, navigate]);
 
+  // Refresh data when user logs in
+  useEffect(() => {
+    if (user) {
+      fetchUserData();
+    }
+  }, [user?.email]);
+
   const fetchUserData = async () => {
     try {
-      // Fetch user orders
-      const ordersResponse = await axios.get('http://localhost:3001/api/orders/user');
-      const userOrders = ordersResponse.data || [];
-      setOrders(userOrders.slice(0, 5)); // Show recent 5 orders
+      // Small delay to ensure OrderContext is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Get user orders from OrderContext
+      const userOrders = user ? getOrdersByCustomer(user.email) : [];
+      
+      // Fetch available products
+      const productsResponse = await axios.get('http://localhost:3001/api/products');
+      setAvailableProducts(productsResponse.data || []);
 
-      // Calculate stats
-      const totalSpent = userOrders.reduce((sum: number, order: Order) => 
-        order.status !== 'cancelled' ? sum + order.total : sum, 0
-      );
-      const pendingOrders = userOrders.filter((order: Order) => 
-        order.status === 'pending' || order.status === 'processing'
-      ).length;
+      // Calculate stats only if orders exist
+      if (userOrders.length > 0) {
+        const totalSpent = userOrders.reduce((sum: number, order: Order) => 
+          order.status !== 'cancelled' ? sum + order.totalAmount : sum, 0
+        );
+        const pendingOrders = userOrders.filter((order: Order) => 
+          order.status.toLowerCase() === 'pending' || order.status.toLowerCase() === 'processing'
+        ).length;
 
-      // Fetch wishlist items
-      const wishlistResponse = await axios.get('http://localhost:3001/api/wishlist');
-      const wishlistItems = wishlistResponse.data || [];
-      setWishlist(wishlistItems);
+        // Fetch wishlist items
+        const wishlistResponse = await axios.get('http://localhost:3001/api/wishlist');
+        const wishlistItems = wishlistResponse.data || [];
+        setWishlist(wishlistItems);
 
-      // Calculate additional stats
-      const savedMoney = userOrders.reduce((sum: number, order: Order) => {
-        // Calculate saved money from discounts (mock calculation)
-        return sum + (order.total * 0.1); // Assume 10% savings on average
-      }, 0);
-      const loyaltyPoints = Math.floor(totalSpent / 10); // 1 point per ₹10 spent
+        // Calculate additional stats
+        const savedMoney = userOrders.reduce((sum: number, order: Order) => {
+          // Calculate saved money from discounts (mock calculation)
+          return sum + (order.totalAmount * 0.1); // Assume 10% savings on average
+        }, 0);
+        const loyaltyPoints = Math.floor(totalSpent / 10); // 1 point per ₹10 spent
 
-      setStats({
-        totalOrders: userOrders.length,
-        totalSpent,
-        wishlistItems: wishlistItems.length,
-        pendingOrders,
-        savedMoney,
-        loyaltyPoints
-      });
+        setStats({
+          totalOrders: userOrders.length,
+          totalSpent,
+          wishlistItems: wishlistItems.length,
+          pendingOrders,
+          savedMoney,
+          loyaltyPoints
+        });
+      } else {
+        // Set default stats if no orders
+        setStats({
+          totalOrders: 0,
+          totalSpent: 0,
+          wishlistItems: 0,
+          pendingOrders: 0,
+          savedMoney: 0,
+          loyaltyPoints: 0
+        });
+      }
     } catch (error) {
       console.error('Failed to fetch user data:', error);
       // Set default values if API fails
@@ -177,13 +220,88 @@ const UserDashboard: React.FC = () => {
     }
   };
 
+  const handleAddItemsToOrder = async (orderId: string) => {
+    try {
+      if (selectedProducts.length === 0) {
+        toast.error('Please select at least one product');
+        return;
+      }
+
+      const additionalAmount = selectedProducts.reduce((sum, product) => sum + (product.price * product.quantity), 0);
+      
+      const response = await axios.put(`http://localhost:3001/api/orders/${orderId}`, {
+        items: selectedProducts,
+        additionalAmount
+      });
+
+      if (response.data.message) {
+        toast.success(response.data.message);
+        // Refresh orders
+        fetchUserData();
+        // Reset form
+        setSelectedProducts([]);
+        setShowAddItems(false);
+        setSelectedOrder(null);
+      }
+    } catch (error: any) {
+      console.error('Error adding items to order:', error);
+      toast.error(error.response?.data?.message || 'Failed to add items to order');
+    }
+  };
+
+  const handleCancelOrder = async (orderId: string) => {
+    try {
+      const response = await axios.delete(`http://localhost:3001/api/orders/${orderId}`);
+      
+      if (response.data.message) {
+        toast.success(response.data.message);
+        // Refresh orders
+        fetchUserData();
+      }
+    } catch (error: any) {
+      console.error('Error cancelling order:', error);
+      toast.error(error.response?.data?.message || 'Failed to cancel order');
+    }
+  };
+
+  const handleProductSelect = (product: any) => {
+    const existingIndex = selectedProducts.findIndex(p => p.id === product.id);
+    
+    if (existingIndex >= 0) {
+      // Update quantity
+      const updatedProducts = [...selectedProducts];
+      updatedProducts[existingIndex].quantity += 1;
+      setSelectedProducts(updatedProducts);
+    } else {
+      // Add new product
+      setSelectedProducts([...selectedProducts, { ...product, quantity: 1 }]);
+    }
+  };
+
+  const handleProductRemove = (productId: string) => {
+    setSelectedProducts(selectedProducts.filter(p => p.id !== productId));
+  };
+
+  const updateProductQuantity = (productId: string, quantity: number) => {
+    if (quantity <= 0) {
+      handleProductRemove(productId);
+      return;
+    }
+    
+    const updatedProducts = selectedProducts.map(p => 
+      p.id === productId ? { ...p, quantity } : p
+    );
+    setSelectedProducts(updatedProducts);
+  };
+
   const handleLogout = () => {
     logout();
     navigate('/');
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    const normalizedStatus = status.toLowerCase();
+    switch (normalizedStatus) {
       case 'pending': return 'text-yellow-500 bg-yellow-500/10';
       case 'processing': return 'text-blue-500 bg-blue-500/10';
       case 'shipped': return 'text-purple-500 bg-purple-500/10';
@@ -194,7 +312,8 @@ const UserDashboard: React.FC = () => {
   };
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
+    const normalizedStatus = status.toLowerCase();
+    switch (normalizedStatus) {
       case 'pending': return <Clock className="w-4 h-4" />;
       case 'processing': return <Package className="w-4 h-4" />;
       case 'shipped': return <Truck className="w-4 h-4" />;
@@ -240,7 +359,7 @@ const UserDashboard: React.FC = () => {
 
   const filteredOrders = orders.filter(order => {
     if (filterStatus === 'all') return true;
-    return order.status === filterStatus;
+    return order.status.toLowerCase() === filterStatus;
   });
 
   const filteredWishlist = wishlist.filter(item => 
@@ -387,23 +506,65 @@ const UserDashboard: React.FC = () => {
               {orders.length > 0 ? (
                 <div className="space-y-4">
                   {orders.map((order) => (
-                    <div key={order.id} className="flex items-center justify-between p-4 rounded-xl bg-gray-50 border border-gray-200">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center">
-                          <Package className="w-6 h-6 text-muted-foreground" />
+                    <div key={order.id} className="border border-border rounded-xl p-4 bg-white">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center">
+                            <Package className="w-6 h-6 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">Order #{order.id}</p>
+                            <p className="text-sm text-muted-foreground">{order.orderDate}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-foreground">Order #{order.id}</p>
-                          <p className="text-sm text-muted-foreground">{order.date}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-foreground">₹{order.totalAmount.toLocaleString()}</p>
+                          <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                            {getStatusIcon(order.status)}
+                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                          </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium text-foreground">₹{order.total.toLocaleString()}</p>
-                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                          {getStatusIcon(order.status)}
-                          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+
+                      {/* Order Items */}
+                      <div className="mb-4">
+                        <h4 className="font-medium text-foreground mb-2">Order Items:</h4>
+                        <div className="space-y-2">
+                          {order.items.map((item, index) => (
+                            <div key={index} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                              <img src={item.image || 'https://via.placeholder.com/48x48'} alt={item.name} className="w-12 h-12 rounded object-cover" />
+                              <div className="flex-1">
+                                <p className="font-medium text-sm">{item.name}</p>
+                                <p className="text-xs text-muted-foreground">Qty: {item.quantity} × ₹{item.price}</p>
+                              </div>
+                              <p className="font-medium text-sm">₹{(item.price * item.quantity).toLocaleString()}</p>
+                            </div>
+                          ))}
                         </div>
                       </div>
+
+                      {/* Action Buttons */}
+                      {(order.status.toLowerCase() === 'pending' || order.status.toLowerCase() === 'processing') && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setShowAddItems(true);
+                            }}
+                            className="flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Add Items
+                          </button>
+                          <button
+                            onClick={() => handleCancelOrder(order.id)}
+                            className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Cancel Order
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -506,6 +667,155 @@ const UserDashboard: React.FC = () => {
           </motion.div>
         </div>
       </div>
+
+      {/* Add Items Modal */}
+      {showAddItems && selectedOrder && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl border border-border p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-foreground">
+                Add Items to Order #{selectedOrder.id}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowAddItems(false);
+                  setSelectedOrder(null);
+                  setSelectedProducts([]);
+                }}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Available Products */}
+            <div className="mb-6">
+              <h4 className="font-medium text-foreground mb-4">Available Products</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-60 overflow-y-auto">
+                {availableProducts.map((product) => {
+                  const isSelected = selectedProducts.some(p => p.id === product.id);
+                  const selectedProduct = selectedProducts.find(p => p.id === product.id);
+                  return (
+                    <div
+                      key={product.id}
+                      onClick={() => handleProductSelect(product)}
+                      className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                        isSelected
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-border hover:border-blue-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          className="w-16 h-16 rounded object-cover"
+                        />
+                        <div className="flex-1">
+                          <h5 className="font-medium text-foreground">{product.name}</h5>
+                          <p className="text-sm text-muted-foreground">₹{product.price.toLocaleString()}</p>
+                          <p className="text-xs text-green-600">In Stock</p>
+                        </div>
+                        {isSelected && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateProductQuantity(product.id, (selectedProduct?.quantity || 1) - 1);
+                              }}
+                              className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <span className="w-8 text-center font-medium">
+                              {selectedProduct?.quantity || 1}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateProductQuantity(product.id, (selectedProduct?.quantity || 1) + 1);
+                              }}
+                              className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Selected Items Summary */}
+            {selectedProducts.length > 0 && (
+              <div className="mb-6">
+                <h4 className="font-medium text-foreground mb-4">Selected Items</h4>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {selectedProducts.map((product, index) => (
+                    <div key={product.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          className="w-12 h-12 rounded object-cover"
+                        />
+                        <div>
+                          <p className="font-medium text-sm">{product.name}</p>
+                          <p className="text-xs text-muted-foreground">Qty: {product.quantity}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">₹{(product.price * product.quantity).toLocaleString()}</p>
+                        <button
+                          onClick={() => handleProductRemove(product.id)}
+                          className="ml-2 text-red-500 hover:text-red-600 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Total and Action Buttons */}
+            {selectedProducts.length > 0 && (
+              <div className="border-t border-border pt-4">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-lg font-medium text-foreground">
+                    Additional Total: ₹{selectedProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setSelectedProducts([]);
+                      setShowAddItems(false);
+                      setSelectedOrder(null);
+                    }}
+                    className="flex-1 px-4 py-2 border border-border rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleAddItemsToOrder(selectedOrder.id)}
+                    className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    Add to Order
+                  </button>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

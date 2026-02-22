@@ -14,6 +14,8 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import AdminLogin from "./pages/AdminLogin";
 import UserLogin from "./pages/UserLogin";
+import UserLoginDirect from "./pages/UserLoginDirect";
+import AdminLoginDirect from "./pages/AdminLoginDirect";
 import UserDashboard from "./pages/UserDashboard";
 import Register from "./pages/Register";
 import Products from "./pages/Products";
@@ -42,6 +44,8 @@ const App = () => (
                     <Route path="/login" element={<Login />} />
                     <Route path="/admin-login" element={<AdminLogin />} />
                     <Route path="/user-login" element={<UserLogin />} />
+                    <Route path="/user-login-direct" element={<UserLoginDirect />} />
+                    <Route path="/admin-login-direct" element={<AdminLoginDirect />} />
                     <Route path="/register" element={<Register />} />
                     <Route path="/" element={<Index />} />
                     <Route path="/products" element={<Products />} />

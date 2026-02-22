@@ -34,12 +34,12 @@ const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('orders');
+    const saved = localStorage.getItem('vebstore_orders');
     return saved ? JSON.parse(saved) : [];
   });
 
   useEffect(() => {
-    localStorage.setItem('orders', JSON.stringify(orders));
+    localStorage.setItem('vebstore_orders', JSON.stringify(orders));
   }, [orders]);
 
   const addOrder = (orderData: Omit<Order, 'id' | 'orderDate' | 'estimatedDelivery' | 'status'>) => {
