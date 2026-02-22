@@ -86,7 +86,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const register = async (userData: RegisterData): Promise<boolean> => {
     try {
-      const response = await axios.post('http://localhost:3001/api/auth/register', userData);
+      // Use environment variable for API URL
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await axios.post(`${API_URL}/api/auth/register`, userData);
       
       if (response.data.user && response.data.token) {
         setUser(response.data.user);
@@ -96,6 +98,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       return false;
     } catch (error: any) {
+      console.error('Registration error:', error);
       const message = error.response?.data?.message || 'Registration failed';
       toast.error(message);
       return false;
@@ -104,7 +107,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const response = await axios.post('http://localhost:3001/api/auth/login', { email, password });
+      // Use environment variable for API URL
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await axios.post(`${API_URL}/api/auth/login`, { email, password });
       
       if (response.data.user && response.data.token) {
         setUser(response.data.user);
@@ -114,6 +119,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       return false;
     } catch (error: any) {
+      console.error('Login error:', error);
       const message = error.response?.data?.message || 'Login failed';
       toast.error(message);
       return false;
@@ -135,10 +141,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const fetchAllUsers = async () => {
     try {
-      if (user?.isAdmin && token) {
-        const response = await axios.get('http://localhost:3001/api/users');
-        setAllUsers(response.data);
-      }
+      // Use environment variable for API URL
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await axios.get(`${API_URL}/api/users`);
+      setAllUsers(response.data);
     } catch (error) {
       console.error('Failed to fetch users:', error);
     }
