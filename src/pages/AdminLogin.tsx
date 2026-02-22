@@ -49,15 +49,19 @@ const AdminLogin: React.FC = () => {
     }
 
     setIsLoading(true);
+    console.log('Attempting admin login with:', { email: formData.email, password: '***' });
 
     try {
       const success = await login(formData.email, formData.password);
+      console.log('Login result:', success);
       
       if (success) {
         // Check if user is admin by checking localStorage or context
         const storedUser = localStorage.getItem('vebstore_user');
+        console.log('Stored user:', storedUser);
         if (storedUser) {
           const user = JSON.parse(storedUser);
+          console.log('Parsed user:', user);
           if (user.isAdmin) {
             toast.success('Admin login successful! Redirecting...');
             setTimeout(() => {
@@ -65,13 +69,19 @@ const AdminLogin: React.FC = () => {
             }, 1000);
           } else {
             toast.error('Access denied. Admin privileges required.');
+            console.log('User is not admin:', user);
             // Clear the login since user is not admin
             localStorage.removeItem('vebstore_token');
             localStorage.removeItem('vebstore_user');
           }
+        } else {
+          console.error('No stored user found after successful login');
         }
+      } else {
+        console.log('Login failed');
       }
     } catch (error: any) {
+      console.error('Login error in AdminLogin:', error);
       const message = error.response?.data?.message || 'Login failed';
       toast.error(message);
     } finally {

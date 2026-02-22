@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Frontend Login Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>Frontend Login Test</h1>
+    <button onclick="testLogin()">Test Admin Login</button>
+    <div id="result"></div>
+
+    <script>
+        async function testLogin() {
+            try {
+                console.log('Starting frontend login test...');
+                
+                // Use the same API URL as the frontend
+                const API_URL = 'http://localhost:3001';
+                console.log('API URL:', API_URL);
+                
+                const response = await axios.post(`${API_URL}/api/auth/login`, {
+                    email: 'admin@vebstore.com',
+                    password: 'admin123'
+                });
+                
+                console.log('Response received:', response.data);
+                
+                if (response.data.user && response.data.token) {
+                    // Simulate frontend behavior
+                    localStorage.setItem('vebstore_token', response.data.token);
+                    localStorage.setItem('vebstore_user', JSON.stringify(response.data.user));
+                    
+                    document.getElementById('result').innerHTML = `
+                        <h3>✅ Frontend Login Successful!</h3>
+                        <p>User: ${response.data.user.name}</p>
+                        <p>Is Admin: ${response.data.user.isAdmin}</p>
+                        <p>Token stored: ${localStorage.getItem('vebstore_token') ? 'Yes' : 'No'}</p>
+                        <p>User stored: ${localStorage.getItem('vebstore_user') ? 'Yes' : 'No'}</p>
+                        <pre>${JSON.stringify(response.data, null, 2)}</pre>
+                    `;
+                } else {
+                    document.getElementById('result').innerHTML = `
+                        <h3>❌ Login Failed</h3>
+                        <p>Missing user or token in response</p>
+                    `;
+                }
+            } catch (error) {
+                console.error('Frontend login error:', error);
+                document.getElementById('result').innerHTML = `
+                    <h3>❌ Frontend Login Error</h3>
+                    <p>Error: ${error.message}</p>
+                    <p>Response: ${error.response?.data || 'No response data'}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

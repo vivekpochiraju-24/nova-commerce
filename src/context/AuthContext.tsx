@@ -109,17 +109,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       // Use environment variable for API URL
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      console.log('Attempting login to:', `${API_URL}/api/auth/login`);
+      console.log('Login data:', { email, password: '***' });
+      
       const response = await axios.post(`${API_URL}/api/auth/login`, { email, password });
+      console.log('Login response:', response.data);
       
       if (response.data.user && response.data.token) {
         setUser(response.data.user);
         setToken(response.data.token);
         toast.success(`Welcome back, ${response.data.user.name}!`);
+        console.log('Login successful, user set:', response.data.user);
         return true;
       }
+      console.log('Login failed: missing user or token in response');
       return false;
     } catch (error: any) {
       console.error('Login error:', error);
+      console.error('Error response:', error.response?.data);
       const message = error.response?.data?.message || 'Login failed';
       toast.error(message);
       return false;
