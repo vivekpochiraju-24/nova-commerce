@@ -3,12 +3,13 @@ import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Shield, Store } from 'lucide-react';
 import { toast } from 'sonner';
-import axios from 'axios';
+import { useAuth } from '@/context/AuthContext';
 
 const AdminLogin: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -50,22 +51,24 @@ const AdminLogin: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:3001/api/auth/login', { 
-        email: formData.email, 
-        password: formData.password 
-      });
+      const success = await login(formData.email, formData.password);
       
-      if (response.data.user && response.data.token) {
-        // Check if user is admin
-        if (response.data.user.isAdmin) {
-          localStorage.setItem('vebstore_token', response.data.token);
-          localStorage.setItem('vebstore_user', JSON.stringify(response.data.user));
-          toast.success('Admin login successful! Redirecting...');
-          setTimeout(() => {
-            navigate('/admin');
-          }, 1000);
-        } else {
-          toast.error('Access denied. Admin privileges required.');
+      if (success) {
+        // Check if user is admin by checking localStorage or context
+        const storedUser = localStorage.getItem('vebstore_user');
+        if (storedUser) {
+          const user = JSON.parse(storedUser);
+          if (user.isAdmin) {
+            toast.success('Admin login successful! Redirecting...');
+            setTimeout(() => {
+              navigate('/admin');
+            }, 1000);
+          } else {
+            toast.error('Access denied. Admin privileges required.');
+            // Clear the login since user is not admin
+            localStorage.removeItem('vebstore_token');
+            localStorage.removeItem('vebstore_user');
+          }
         }
       }
     } catch (error: any) {

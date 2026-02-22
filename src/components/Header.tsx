@@ -135,12 +135,23 @@ const Header: React.FC = () => {
               {/* User Actions */}
               {user ? (
                 <div className="flex items-center gap-2">
-                  {user.isAdmin && (
+                  {user.isAdmin ? (
                     <Link to="/admin" className="hidden sm:block">
                       <NeonButton variant="primary" size="sm">
                         <User className="w-4 h-4" />
                         Admin
                       </NeonButton>
+                    </Link>
+                  ) : (
+                    <Link to="/user-dashboard" className="hidden sm:block">
+                      <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 transition-colors"
+                      >
+                        <User className="w-4 h-4" />
+                        <span className="text-sm font-medium">Dashboard</span>
+                      </motion.div>
                     </Link>
                   )}
                   <motion.button
@@ -233,12 +244,23 @@ const Header: React.FC = () => {
                 </Link>
                 {user ? (
                   <>
-                    {user.isAdmin && (
+                    {user.isAdmin ? (
                       <Link to="/admin" onClick={() => setIsMenuOpen(false)}>
                         <NeonButton variant="primary" className="w-full">
                           <User className="w-4 h-4" />
                           Admin Dashboard
                         </NeonButton>
+                      </Link>
+                    ) : (
+                      <Link to="/user-dashboard" onClick={() => setIsMenuOpen(false)}>
+                        <motion.div
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          className="w-full flex items-center gap-2 px-4 py-3 rounded-xl bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 transition-colors font-medium"
+                        >
+                          <User className="w-4 h-4" />
+                          User Dashboard
+                        </motion.div>
                       </Link>
                     )}
                     <motion.button

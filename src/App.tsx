@@ -8,6 +8,7 @@ import { UserCartProvider } from "@/context/UserCartContext";
 import { OrderProvider } from "@/context/OrderContext";
 import { ProductProvider } from "@/context/ProductContext";
 import { WishlistProvider } from "@/context/WishlistContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import AIChatbot from "@/components/AIChatbot";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
@@ -41,7 +42,6 @@ const App = () => (
                     <Route path="/login" element={<Login />} />
                     <Route path="/admin-login" element={<AdminLogin />} />
                     <Route path="/user-login" element={<UserLogin />} />
-                    <Route path="/user-dashboard" element={<UserDashboard />} />
                     <Route path="/register" element={<Register />} />
                     <Route path="/" element={<Index />} />
                     <Route path="/products" element={<Products />} />
@@ -50,7 +50,22 @@ const App = () => (
                     <Route path="/checkout" element={<Checkout />} />
                     <Route path="/order-success" element={<OrderSuccess />} />
                     <Route path="/wishlist" element={<Wishlist />} />
-                    <Route path="/admin" element={<Admin />} />
+                    <Route 
+                      path="/user-dashboard" 
+                      element={
+                        <ProtectedRoute>
+                          <UserDashboard />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/admin" 
+                      element={
+                        <ProtectedRoute requireAdmin>
+                          <Admin />
+                        </ProtectedRoute>
+                      } 
+                    />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                   <AIChatbot />
