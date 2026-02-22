@@ -118,7 +118,7 @@ const AdminLoginDirect: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-4 sm:p-6 lg:p-8 relative overflow-hidden">
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Floating Orbs */}
@@ -187,22 +187,22 @@ const AdminLoginDirect: React.FC = () => {
         className="w-full max-w-md relative z-10"
       >
         {/* Logo and Brand */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 sm:mb-8">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
             className="inline-block"
           >
-            <div className="flex items-center gap-3 mb-8">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center shadow-2xl border border-gray-700">
-                <Crown className="w-8 h-8 text-yellow-400" />
+            <div className="flex items-center gap-2 sm:gap-3 mb-6 sm:mb-8">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center shadow-2xl border border-gray-700">
+                <Crown className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-400" />
               </div>
-              <div>
-                <h1 className="text-3xl font-bold text-white">
+              <div className="text-left">
+                <h1 className="text-2xl sm:text-3xl font-bold text-white">
                   VEB<span className="text-gradient-neon"> Store</span>
                 </h1>
-                <p className="text-gray-400 mt-2">Admin Portal</p>
+                <p className="text-gray-400 mt-1 text-sm sm:text-base">Admin Portal</p>
               </div>
             </div>
           </motion.div>
@@ -213,25 +213,16 @@ const AdminLoginDirect: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
-          className="bg-gray-800/50 backdrop-blur-lg rounded-3xl border border-gray-700 shadow-2xl p-8"
+          className="bg-gray-800/50 backdrop-blur-lg rounded-2xl sm:rounded-3xl border border-gray-700 shadow-2xl p-6 sm:p-8"
         >
-          <div className="text-center mb-6">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.4, type: "spring", stiffness: 300 }}
-              className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mx-auto mb-4 shadow-lg"
-            >
-              <Settings className="w-10 h-10 text-white" />
-            </motion.div>
-
-            <h2 className="text-2xl font-bold text-white mb-2">
+          <div className="text-center mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
               Admin Access
             </h2>
-            <p className="text-gray-400">Enter your administrator credentials</p>
+            <p className="text-gray-400 text-sm sm:text-base">Enter your administrator credentials</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             {/* Email Field */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
@@ -239,7 +230,7 @@ const AdminLoginDirect: React.FC = () => {
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-500" />
+                  <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
                 </div>
                 <input
                   id="email"
@@ -249,16 +240,16 @@ const AdminLoginDirect: React.FC = () => {
                   required
                   value={formData.email}
                   onChange={handleInputChange}
-                  className={`w-full pl-10 pr-3 py-3 bg-gray-700 border ${errors.email ? 'border-red-500' : 'border-gray-600'} rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-colors text-white placeholder:text-gray-400`}
+                  className={`w-full pl-9 sm:pl-10 pr-3 py-2.5 sm:py-3 bg-gray-700 border ${errors.email ? 'border-red-500' : 'border-gray-600'} rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-colors text-white placeholder:text-gray-400 text-sm sm:text-base`}
                   placeholder="admin@vebstore.com"
                 />
                 {errors.email && (
                   <motion.div
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="absolute mt-1 text-red-400 text-sm flex items-center gap-1"
+                    className="absolute mt-1 text-red-400 text-xs sm:text-sm flex items-center gap-1"
                   >
-                    <AlertTriangle className="w-4 h-4" />
+                    <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span>{errors.email}</span>
                   </motion.div>
                 )}
@@ -272,7 +263,7 @@ const AdminLoginDirect: React.FC = () => {
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Key className="h-5 w-5 text-gray-500" />
+                  <Key className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
                 </div>
                 <input
                   id="password"
@@ -282,8 +273,8 @@ const AdminLoginDirect: React.FC = () => {
                   required
                   value={formData.password}
                   onChange={handleInputChange}
-                  className={`w-full pl-10 pr-10 py-3 bg-gray-700 border ${errors.password ? 'border-red-500' : 'border-gray-600'} rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-colors text-white placeholder:text-gray-400`}
-                  placeholder="•••••••••"
+                  className={`w-full pl-9 sm:pl-10 pr-9 sm:pr-10 py-2.5 sm:py-3 bg-gray-700 border ${errors.password ? 'border-red-500' : 'border-gray-600'} rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-colors text-white placeholder:text-gray-400 text-sm sm:text-base`}
+                  placeholder="••••••••"
                 />
                 <button
                   type="button"
@@ -291,18 +282,18 @@ const AdminLoginDirect: React.FC = () => {
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-500" />
+                    <EyeOff className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
                   ) : (
-                    <Eye className="h-5 w-5 text-gray-500" />
+                    <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
                   )}
                 </button>
                 {errors.password && (
                   <motion.div
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="absolute mt-1 text-red-400 text-sm flex items-center gap-1"
+                    className="absolute mt-1 text-red-400 text-xs sm:text-sm flex items-center gap-1"
                   >
-                    <AlertTriangle className="w-4 h-4" />
+                    <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span>{errors.password}</span>
                   </motion.div>
                 )}
@@ -329,23 +320,23 @@ const AdminLoginDirect: React.FC = () => {
                 whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={isLoading || isSuccess}
-                className="w-full flex justify-center items-center gap-2 px-4 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex justify-center items-center gap-2 px-4 py-2.5 sm:py-3 border border-transparent rounded-lg shadow-sm text-sm sm:text-base font-medium text-white bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading && !isSuccess && (
                   <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-transparent animate-spin rounded-full" />
+                    <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-transparent animate-spin rounded-full" />
                     <span>Authenticating...</span>
                   </>
                 )}
                 {isSuccess && (
                   <>
-                    <CheckCircle className="w-5 h-5 text-white" />
+                    <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     <span>Success!</span>
                   </>
                 )}
                 {!isLoading && !isSuccess && (
                   <>
-                    <Shield className="w-5 h-5 text-white" />
+                    <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     <span>Admin Sign In</span>
                   </>
                 )}
@@ -358,7 +349,7 @@ const AdminLoginDirect: React.FC = () => {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1.2 }}
                 transition={{ duration: 0.5 }}
-                className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none"
+                className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none bg-black/50"
               >
                 <div className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center">
                   <CheckCircle className="w-8 h-8 text-white" />
@@ -372,13 +363,13 @@ const AdminLoginDirect: React.FC = () => {
           </form>
 
           {/* Demo Credentials */}
-          <div className="mt-6 border-t border-gray-700 pt-6">
-            <div className="bg-gray-800/50 rounded-lg p-4">
+          <div className="mt-4 sm:mt-6 border-t border-gray-700 pt-4 sm:pt-6">
+            <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Users className="w-5 h-5 text-yellow-400" />
+                <Users className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
                 <span className="text-sm font-medium text-gray-300">Demo Credentials</span>
               </div>
-              <div className="space-y-2 text-sm text-gray-400">
+              <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm text-gray-400">
                 <p><span className="font-medium">Email:</span> admin@vebstore.com</p>
                 <p><span className="font-medium">Password:</span> admin123</p>
               </div>
@@ -386,38 +377,38 @@ const AdminLoginDirect: React.FC = () => {
           </div>
 
           {/* Admin Features */}
-          <div className="mt-6 border-t border-gray-700 pt-6">
-            <p className="text-center text-sm text-gray-400 mb-4">Admin Features</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-800/50 border border-gray-600">
-                <Server className="w-5 h-5 text-yellow-400" />
-                <span className="text-sm font-medium text-gray-300">Products</span>
+          <div className="mt-4 sm:mt-6 border-t border-gray-700 pt-4 sm:pt-6">
+            <p className="text-center text-sm text-gray-400 mb-3 sm:mb-4">Admin Features</p>
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-gray-800/50 border border-gray-600">
+                <Server className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+                <span className="text-xs sm:text-sm font-medium text-gray-300">Products</span>
               </div>
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-800/50 border border-gray-600">
-                <Database className="w-5 h-5 text-yellow-400" />
-                <span className="text-sm font-medium text-gray-300">Orders</span>
+              <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-gray-800/50 border border-gray-600">
+                <Database className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+                <span className="text-xs sm:text-sm font-medium text-gray-300">Orders</span>
               </div>
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-800/50 border border-gray-600">
-                <Users className="w-5 h-5 text-yellow-400" />
-                <span className="text-sm font-medium text-gray-300">Customers</span>
+              <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-gray-800/50 border border-gray-600">
+                <Users className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+                <span className="text-xs sm:text-sm font-medium text-gray-300">Customers</span>
               </div>
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-800/50 border border-gray-600">
-                <Activity className="w-5 h-5 text-yellow-400" />
-                <span className="text-sm font-medium text-gray-300">Analytics</span>
+              <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-gray-800/50 border border-gray-600">
+                <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+                <span className="text-xs sm:text-sm font-medium text-gray-300">Analytics</span>
               </div>
             </div>
           </div>
 
           {/* Security Badge */}
-          <div className="mt-6 text-center">
+          <div className="mt-4 sm:mt-6 text-center">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-medium">
-              <Shield className="w-4 h-4" />
+              <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
               Secure Admin Access
             </div>
           </div>
 
           {/* Footer Links */}
-          <div className="text-center mt-8 text-sm text-gray-400">
+          <div className="text-center mt-6 sm:mt-8 text-sm text-gray-400">
             <Link to="/" className="hover:text-gray-300">
               ← Back to Home
             </Link>

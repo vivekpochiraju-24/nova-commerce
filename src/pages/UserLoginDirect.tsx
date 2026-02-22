@@ -85,7 +85,7 @@ const UserLoginDirect: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4 sm:p-6 lg:p-8">
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
@@ -96,25 +96,25 @@ const UserLoginDirect: React.FC = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md relative z-10"
       >
         {/* Logo and Brand */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 sm:mb-8">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
             className="inline-block"
           >
-            <div className="flex items-center gap-3 mb-8">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-2xl">
-                <ShoppingBag className="w-8 h-8 text-white" />
+            <div className="flex items-center gap-2 sm:gap-3 mb-6 sm:mb-8">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-2xl">
+                <ShoppingBag className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
               </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
+              <div className="text-left">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
                   VEB<span className="text-gradient-neon"> Store</span>
                 </h1>
-                <p className="text-gray-600 mt-2">Customer Portal</p>
+                <p className="text-gray-600 mt-1 text-sm sm:text-base">Customer Portal</p>
               </div>
             </div>
           </motion.div>
@@ -125,14 +125,14 @@ const UserLoginDirect: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
-          className="bg-white/90 backdrop-blur-lg rounded-3xl border border-white/20 shadow-2xl p-8"
+          className="bg-white/90 backdrop-blur-lg rounded-2xl sm:rounded-3xl border border-white/20 shadow-2xl p-6 sm:p-8"
         >
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Customer Login</h2>
-            <p className="text-gray-600">Access your personalized shopping experience</p>
+          <div className="text-center mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Customer Login</h2>
+            <p className="text-gray-600 text-sm sm:text-base">Access your personalized shopping experience</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             {/* Email Field */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
@@ -140,7 +140,7 @@ const UserLoginDirect: React.FC = () => {
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
+                  <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                 </div>
                 <input
                   id="email"
@@ -150,12 +150,12 @@ const UserLoginDirect: React.FC = () => {
                   required
                   value={formData.email}
                   onChange={handleInputChange}
-                  className={`w-full pl-10 pr-3 py-3 border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder:text-gray-500`}
+                  className={`w-full pl-9 sm:pl-10 pr-3 py-2.5 sm:py-3 border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder:text-gray-500 text-sm sm:text-base`}
                   placeholder="Enter your email"
                 />
                 {errors.email && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <p className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1">
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 0 1 1v3a8 8 0 0 1 1h-4a8 8 0 0 1 1z" clipRule="evenodd" />
                     </svg>
                     {errors.email}
@@ -171,7 +171,7 @@ const UserLoginDirect: React.FC = () => {
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
+                  <Lock className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                 </div>
                 <input
                   id="password"
@@ -181,7 +181,7 @@ const UserLoginDirect: React.FC = () => {
                   required
                   value={formData.password}
                   onChange={handleInputChange}
-                  className={`w-full pl-10 pr-10 py-3 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder:text-gray-500`}
+                  className={`w-full pl-9 sm:pl-10 pr-9 sm:pr-10 py-2.5 sm:py-3 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder:text-gray-500 text-sm sm:text-base`}
                   placeholder="Enter your password"
                 />
                 <button
@@ -190,14 +190,14 @@ const UserLoginDirect: React.FC = () => {
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
+                    <EyeOff className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                   ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
+                    <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                   )}
                 </button>
                 {errors.password && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <p className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1">
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 0 1 1v3a8 8 0 0 1 1z" clipRule="evenodd" />
                     </svg>
                     {errors.password}
@@ -207,7 +207,7 @@ const UserLoginDirect: React.FC = () => {
             </div>
 
             {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
               <div className="flex items-center">
                 <input
                   id="remember"
@@ -231,23 +231,23 @@ const UserLoginDirect: React.FC = () => {
                 whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={isLoading || isSuccess}
-                className="w-full flex justify-center items-center gap-2 px-4 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex justify-center items-center gap-2 px-4 py-2.5 sm:py-3 border border-transparent rounded-lg shadow-sm text-sm sm:text-base font-medium text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading && !isSuccess && (
                   <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-transparent animate-spin rounded-full" />
+                    <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-transparent animate-spin rounded-full" />
                     <span>Processing...</span>
                   </>
                 )}
                 {isSuccess && (
                   <>
-                    <CheckCircle className="w-5 h-5 text-white" />
+                    <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     <span>Success!</span>
                   </>
                 )}
                 {!isLoading && !isSuccess && (
                   <>
-                    <User className="w-5 h-5 text-white" />
+                    <User className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     <span>Sign In</span>
                   </>
                 )}
@@ -260,7 +260,7 @@ const UserLoginDirect: React.FC = () => {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1.2 }}
                 transition={{ duration: 0.5 }}
-                className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none"
+                className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none bg-black/50"
               >
                 <div className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center">
                   <CheckCircle className="w-8 h-8 text-white" />
@@ -274,7 +274,7 @@ const UserLoginDirect: React.FC = () => {
           </form>
 
           {/* Register Link */}
-          <div className="text-center mt-8 text-sm text-gray-600">
+          <div className="text-center mt-6 sm:mt-8 text-sm text-gray-600">
             <p className="text-gray-600">
               Don't have an account?{' '}
               <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
@@ -284,30 +284,30 @@ const UserLoginDirect: React.FC = () => {
           </div>
 
           {/* Quick Access */}
-          <div className="mt-6 border-t pt-6">
-            <p className="text-center text-sm text-gray-600 mb-4">Quick Access</p>
-            <div className="grid grid-cols-2 gap-3">
+          <div className="mt-4 sm:mt-6 border-t pt-4 sm:pt-6">
+            <p className="text-center text-sm text-gray-600 mb-3 sm:mb-4">Quick Access</p>
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <Link
                 to="/products"
-                className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors"
+                className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors"
               >
-                <ShoppingBag className="w-5 h-5 text-blue-600" />
-                <span className="text-sm font-medium text-blue-900">Shop Now</span>
+                <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                <span className="text-xs sm:text-sm font-medium text-blue-900">Shop Now</span>
               </Link>
               <Link
                 to="/wishlist"
-                className="flex items-center gap-2 p-3 rounded-lg bg-pink-50 border border-pink-200 hover:bg-pink-100 transition-colors"
+                className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-pink-50 border border-pink-200 hover:bg-pink-100 transition-colors"
               >
-                <Heart className="w-5 h-5 text-pink-600" />
-                <span className="text-sm font-medium text-pink-900">Wishlist</span>
+                <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-pink-600" />
+                <span className="text-xs sm:text-sm font-medium text-pink-900">Wishlist</span>
               </Link>
             </div>
           </div>
 
           {/* Security Badge */}
-          <div className="mt-6 text-center">
+          <div className="mt-4 sm:mt-6 text-center">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
-              <Shield className="w-4 h-4" />
+              <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
               Secure Login
             </div>
           </div>
