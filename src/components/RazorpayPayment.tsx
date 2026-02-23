@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { loadScript } from '../utils/loadScript';
+import { apiConfig } from '@/utils/apiConfig';
 
 declare global {
   interface Window {
@@ -55,7 +56,8 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
 
     try {
       // Create order on backend
-      const response = await fetch('http://localhost:3001/api/razorpay/create-order', {
+      const API_URL = apiConfig.getApiUrl();
+      const response = await fetch(`${API_URL}/api/razorpay/create-order`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -68,8 +70,9 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
             customerName: customerInfo.name,
             customerEmail: customerInfo.email,
             customerPhone: customerInfo.phone,
-          },
-        }),
+            customerAddress: customerInfo.address
+          }
+        })
       });
 
       const orderData = await response.json();

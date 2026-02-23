@@ -2,11 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Bot, User, Loader2, Clock } from 'lucide-react';
 import { toast } from 'sonner';
+import { apiConfig } from '@/utils/apiConfig';
 
 type Message = { role: 'user' | 'assistant'; content: string; timestamp?: Date; typingSpeed?: number };
 type TypingIndicator = { isTyping: boolean; text?: string; startTime?: Date };
-
-const CHAT_URL = `http://localhost:3001/functions/v1/chat`;
 
 const AIChatbot: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -60,7 +59,8 @@ const AIChatbot: React.FC = () => {
     let typingSpeed = 30 + Math.random() * 20; // Variable typing speed
 
     try {
-      const resp = await fetch(CHAT_URL, {
+      const chatUrl = getChatUrl();
+      const resp = await fetch(chatUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

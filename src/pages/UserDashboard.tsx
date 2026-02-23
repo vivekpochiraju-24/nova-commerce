@@ -37,6 +37,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useOrder } from '@/context/OrderContext';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { apiConfig } from '@/utils/apiConfig';
 
 interface Order {
   id: string;
@@ -161,7 +162,8 @@ const UserDashboard: React.FC = () => {
       const userOrders = user ? getOrdersByCustomer(user.email) : [];
       
       // Fetch available products
-      const productsResponse = await axios.get('http://localhost:3001/api/products');
+      const API_URL = apiConfig.getApiUrl();
+      const productsResponse = await axios.get(`${API_URL}/api/products`);
       setAvailableProducts(productsResponse.data || []);
 
       // Calculate stats only if orders exist
@@ -174,7 +176,7 @@ const UserDashboard: React.FC = () => {
         ).length;
 
         // Fetch wishlist items
-        const wishlistResponse = await axios.get('http://localhost:3001/api/wishlist');
+        const wishlistResponse = await axios.get(`${API_URL}/api/wishlist`);
         const wishlistItems = wishlistResponse.data || [];
         setWishlist(wishlistItems);
 
@@ -228,8 +230,8 @@ const UserDashboard: React.FC = () => {
       }
 
       const additionalAmount = selectedProducts.reduce((sum, product) => sum + (product.price * product.quantity), 0);
-      
-      const response = await axios.put(`http://localhost:3001/api/orders/${orderId}`, {
+      const API_URL = apiConfig.getApiUrl();
+      const response = await axios.put(`${API_URL}/api/orders/${orderId}`, {
         items: selectedProducts,
         additionalAmount
       });
@@ -251,7 +253,8 @@ const UserDashboard: React.FC = () => {
 
   const handleCancelOrder = async (orderId: string) => {
     try {
-      const response = await axios.delete(`http://localhost:3001/api/orders/${orderId}`);
+      const API_URL = apiConfig.getApiUrl();
+      const response = await axios.delete(`${API_URL}/api/orders/${orderId}`);
       
       if (response.data.message) {
         toast.success(response.data.message);

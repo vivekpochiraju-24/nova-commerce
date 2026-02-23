@@ -11,6 +11,7 @@ import NeonButton from '@/components/ui/NeonButton';
 import RazorpayPayment from '@/components/RazorpayPayment';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { apiConfig } from '@/utils/apiConfig';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -68,7 +69,8 @@ const Checkout: React.FC = () => {
   const handlePaymentSuccess = async (response: any) => {
     try {
       // Verify payment on backend
-      const verifyResponse = await axios.post('http://localhost:3001/api/razorpay/verify-payment', {
+      const API_URL = apiConfig.getApiUrl();
+      const verifyResponse = await axios.post(`${API_URL}/api/razorpay/verify-payment`, {
         razorpay_order_id: response.razorpay_order_id,
         razorpay_payment_id: response.razorpay_payment_id,
         razorpay_signature: response.razorpay_signature,

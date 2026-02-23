@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { apiConfig } from '@/utils/apiConfig';
 
 interface User {
   id: string;
@@ -86,8 +87,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const register = async (userData: RegisterData): Promise<boolean> => {
     try {
-      // Use environment variable for API URL
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      // Use dynamic API URL
+      const API_URL = apiConfig.getApiUrl();
+      console.log('Register API URL:', API_URL);
       const response = await axios.post(`${API_URL}/api/auth/register`, userData);
       
       if (response.data.user && response.data.token) {
@@ -107,9 +109,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Use environment variable for API URL
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      console.log('Attempting login to:', `${API_URL}/api/auth/login`);
+      // Use dynamic API URL
+      const API_URL = apiConfig.getApiUrl();
+      console.log('Login API URL:', API_URL);
       console.log('Login data:', { email, password: '***' });
       
       const response = await axios.post(`${API_URL}/api/auth/login`, { email, password });
@@ -148,8 +150,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const fetchAllUsers = async () => {
     try {
-      // Use environment variable for API URL
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      // Use dynamic API URL
+      const API_URL = apiConfig.getApiUrl();
       const response = await axios.get(`${API_URL}/api/users`);
       setAllUsers(response.data);
     } catch (error) {
