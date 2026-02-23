@@ -59,7 +59,7 @@ const AIChatbot: React.FC = () => {
     let typingSpeed = 30 + Math.random() * 20; // Variable typing speed
 
     try {
-      const chatUrl = getChatUrl();
+      const chatUrl = apiConfig.getApiUrl() + '/chat';
       const resp = await fetch(chatUrl, {
         method: 'POST',
         headers: {
