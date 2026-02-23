@@ -16,7 +16,7 @@ export const getApiUrl = (): string => {
     return 'http://localhost:3001';
   }
   
-  // Production: use relative URL (will work with deployed backend)
+  // Production: use Netlify functions
   return '/api';
 };
 
@@ -34,10 +34,10 @@ export const getWebSocketUrl = (): string => {
     return 'ws://localhost:3001';
   }
   
-  // Production WebSocket (secure)
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = window.location.host;
-  return `${protocol}//${host}/ws`;
+  // Production: Netlify doesn't support WebSockets in serverless functions
+  // Return null and handle gracefully in the application
+  console.warn('WebSocket not supported in Netlify serverless functions');
+  return null;
 };
 
 export const apiConfig = {
