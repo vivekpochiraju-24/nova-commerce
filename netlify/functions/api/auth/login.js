@@ -1,6 +1,6 @@
 // Netlify serverless function for user login
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 // In-memory storage (in production, use a database)
 let users = [];
@@ -85,4 +85,4 @@ const handler = async (event, context) => {
   }
 };
 
-export { handler };
+module.exports = { handler };

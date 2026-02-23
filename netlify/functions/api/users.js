@@ -1,5 +1,5 @@
 // Netlify serverless function for getting all users
-import jwt from 'jsonwebtoken';
+const jwt = require('jsonwebtoken');
 
 // In-memory storage (in production, use a database)
 let users = [];
@@ -66,4 +66,4 @@ const handler = async (event, context) => {
   }
 };
 
-export { handler };
+module.exports = { handler };
