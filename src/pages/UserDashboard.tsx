@@ -163,7 +163,12 @@ const UserDashboard: React.FC = () => {
       
       // Fetch available products
       const API_URL = apiConfig.getApiUrl();
-      const productsResponse = await axios.get(`${API_URL}/api/products`);
+      const productsEndpoint = API_URL.endsWith('/api') 
+        ? `${API_URL}/products` 
+        : `${API_URL}/api/products`;
+      
+      console.log('Products endpoint:', productsEndpoint);
+      const productsResponse = await axios.get(productsEndpoint);
       setAvailableProducts(productsResponse.data || []);
 
       // Calculate stats only if orders exist
@@ -176,7 +181,12 @@ const UserDashboard: React.FC = () => {
         ).length;
 
         // Fetch wishlist items
-        const wishlistResponse = await axios.get(`${API_URL}/api/wishlist`);
+        const wishlistEndpoint = API_URL.endsWith('/api') 
+          ? `${API_URL}/wishlist` 
+          : `${API_URL}/api/wishlist`;
+        
+        console.log('Wishlist endpoint:', wishlistEndpoint);
+        const wishlistResponse = await axios.get(wishlistEndpoint);
         const wishlistItems = wishlistResponse.data || [];
         setWishlist(wishlistItems);
 

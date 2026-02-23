@@ -90,7 +90,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Use dynamic API URL
       const API_URL = apiConfig.getApiUrl();
       console.log('Register API URL:', API_URL);
-      const response = await axios.post(`${API_URL}/api/auth/register`, userData);
+      
+      // Construct the correct endpoint URL
+      const endpoint = API_URL.endsWith('/api') 
+        ? `${API_URL}/auth/register` 
+        : `${API_URL}/api/auth/register`;
+      
+      console.log('Register endpoint:', endpoint);
+      const response = await axios.post(endpoint, userData);
       
       if (response.data.user && response.data.token) {
         setUser(response.data.user);
@@ -114,7 +121,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Login API URL:', API_URL);
       console.log('Login data:', { email, password: '***' });
       
-      const response = await axios.post(`${API_URL}/api/auth/login`, { email, password });
+      // Construct the correct endpoint URL
+      const endpoint = API_URL.endsWith('/api') 
+        ? `${API_URL}/auth/login` 
+        : `${API_URL}/api/auth/login`;
+      
+      console.log('Login endpoint:', endpoint);
+      const response = await axios.post(endpoint, { email, password });
       console.log('Login response:', response.data);
       
       if (response.data.user && response.data.token) {
@@ -152,7 +165,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       // Use dynamic API URL
       const API_URL = apiConfig.getApiUrl();
-      const response = await axios.get(`${API_URL}/api/users`);
+      
+      // Construct the correct endpoint URL
+      const endpoint = API_URL.endsWith('/api') 
+        ? `${API_URL}/users` 
+        : `${API_URL}/api/users`;
+      
+      const response = await axios.get(endpoint);
       setAllUsers(response.data);
     } catch (error) {
       console.error('Failed to fetch users:', error);
