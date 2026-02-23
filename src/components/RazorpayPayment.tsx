@@ -69,8 +69,7 @@ const RazorpayPayment: React.FC<RazorpayPaymentProps> = ({
           notes: {
             customerName: customerInfo.name,
             customerEmail: customerInfo.email,
-            customerPhone: customerInfo.phone,
-            customerAddress: customerInfo.address
+            customerPhone: customerInfo.phone
           }
         })
       });
