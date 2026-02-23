@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { toast } from 'sonner';
-import axios from 'axios';
-import { apiConfig } from '@/utils/apiConfig';
+import { supabase } from '@/integrations/supabase/client';
+import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 
 interface User {
   id: string;
@@ -45,145 +45,151 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+const mapSupabaseUser = async (supabaseUser: SupabaseUser): Promise<User> => {
+  // Check if user has admin role
+  const { data: roles } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', supabaseUser.id);
+
+  const isAdmin = roles?.some(r => r.role === 'admin') ?? false;
+
+  // Get profile data
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('user_id', supabaseUser.id)
+    .single();
+
+  return {
+    id: supabaseUser.id,
+    name: profile?.full_name || supabaseUser.user_metadata?.full_name || supabaseUser.email?.split('@')[0] || '',
+    email: supabaseUser.email || '',
+    isAdmin,
+    createdAt: supabaseUser.created_at,
+  };
+};
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Configure axios defaults
   useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    } else {
-      delete axios.defaults.headers.common['Authorization'];
-    }
-  }, [token]);
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user) {
+          setToken(session.access_token);
+          // Use setTimeout to avoid Supabase client deadlock
+          setTimeout(async () => {
+            const mappedUser = await mapSupabaseUser(session.user);
+            setUser(mappedUser);
+          }, 0);
+        } else {
+          setUser(null);
+          setToken(null);
+        }
+      }
+    );
 
-  // Load user from localStorage on mount
-  useEffect(() => {
-    const storedToken = localStorage.getItem('vebstore_token');
-    const storedUser = localStorage.getItem('vebstore_user');
-    
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-    }
-    
-    setIsLoading(false);
+    // THEN check current session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        setToken(session.access_token);
+        const mappedUser = await mapSupabaseUser(session.user);
+        setUser(mappedUser);
+      }
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
-
-  // Save to localStorage whenever user/token changes
-  useEffect(() => {
-    if (user && token) {
-      localStorage.setItem('vebstore_token', token);
-      localStorage.setItem('vebstore_user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('vebstore_token');
-      localStorage.removeItem('vebstore_user');
-    }
-  }, [user, token]);
 
   const register = async (userData: RegisterData): Promise<boolean> => {
     try {
-      // Use dynamic API URL
-      const API_URL = apiConfig.getApiUrl();
-      console.log('Register API URL:', API_URL);
-      
-      // Construct the correct endpoint URL
-      const endpoint = API_URL.endsWith('/api') 
-        ? `${API_URL}/auth/register` 
-        : `${API_URL}/api/auth/register`;
-      
-      console.log('Register endpoint:', endpoint);
-      const response = await axios.post(endpoint, userData);
-      
-      if (response.data.user && response.data.token) {
-        setUser(response.data.user);
-        setToken(response.data.token);
-        toast.success('Registration successful!');
+      const { data, error } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          data: {
+            full_name: userData.name,
+          },
+          emailRedirectTo: window.location.origin,
+        },
+      });
+
+      if (error) {
+        toast.error(error.message);
+        return false;
+      }
+
+      if (data.user) {
+        toast.success('Registration successful! Please check your email to verify your account.');
         return true;
       }
       return false;
     } catch (error: any) {
       console.error('Registration error:', error);
-      const message = error.response?.data?.message || 'Registration failed';
-      toast.error(message);
+      toast.error('Registration failed');
       return false;
     }
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Use dynamic API URL
-      const API_URL = apiConfig.getApiUrl();
-      console.log('Login API URL:', API_URL);
-      console.log('Login data:', { email, password: '***' });
-      
-      // Construct the correct endpoint URL
-      const endpoint = API_URL.endsWith('/api') 
-        ? `${API_URL}/auth/login` 
-        : `${API_URL}/api/auth/login`;
-      
-      console.log('Login endpoint:', endpoint);
-      const response = await axios.post(endpoint, { email, password });
-      console.log('Login response:', response.data);
-      
-      if (response.data.user && response.data.token) {
-        setUser(response.data.user);
-        setToken(response.data.token);
-        toast.success(`Welcome back, ${response.data.user.name}!`);
-        console.log('Login successful, user set:', response.data.user);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        toast.error(error.message);
+        return false;
+      }
+
+      if (data.user) {
+        const mappedUser = await mapSupabaseUser(data.user);
+        setUser(mappedUser);
+        setToken(data.session?.access_token || null);
+        toast.success(`Welcome back, ${mappedUser.name}!`);
         return true;
       }
-      console.log('Login failed: missing user or token in response');
       return false;
     } catch (error: any) {
       console.error('Login error:', error);
-      console.error('Error response:', error.response?.data);
-      const message = error.response?.data?.message || 'Login failed';
-      toast.error(message);
+      toast.error('Login failed');
       return false;
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
     setToken(null);
-    delete axios.defaults.headers.common['Authorization'];
-    
-    // Clear all localStorage data
-    localStorage.removeItem('vebstore_token');
-    localStorage.removeItem('vebstore_user');
-    localStorage.removeItem('vebstore_orders');
-    
     toast.success('Logged out successfully');
-  };
-
-  const fetchAllUsers = async () => {
-    try {
-      // Use dynamic API URL
-      const API_URL = apiConfig.getApiUrl();
-      
-      // Construct the correct endpoint URL
-      const endpoint = API_URL.endsWith('/api') 
-        ? `${API_URL}/users` 
-        : `${API_URL}/api/users`;
-      
-      const response = await axios.get(endpoint);
-      setAllUsers(response.data);
-    } catch (error) {
-      console.error('Failed to fetch users:', error);
-    }
   };
 
   // Fetch all users when admin logs in
   useEffect(() => {
     if (user?.isAdmin) {
+      const fetchAllUsers = async () => {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('*');
+        if (profiles) {
+          setAllUsers(profiles.map(p => ({
+            id: p.user_id,
+            name: p.full_name || p.email,
+            email: p.email,
+            createdAt: p.created_at,
+          })));
+        }
+      };
       fetchAllUsers();
     }
-  }, [user, token]);
+  }, [user]);
 
   const value: AuthContextType = {
     user,
