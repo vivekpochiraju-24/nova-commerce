@@ -1,43 +1,13 @@
-# Netlify configuration for Nova Commerce
-
 [build]
-  publish = "dist"
   command = "npm run build"
-
-[build.environment]
-  NODE_VERSION = "18"
+  publish = "dist"
 
 [[redirects]]
-  # API redirects to Netlify functions
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
 
 [[redirects]]
-  # SPA fallback - redirect all non-file requests to index.html
   from = "/*"
   to = "/index.html"
   status = 200
-
-[functions]
-  # Function configuration
-  directory = "netlify/functions"
-  node_modules_includes = "bcryptjs,jwt,cors"
-
-[[headers]]
-  # Security headers
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-XSS-Protection = "1; mode=block"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-
-[[headers]]
-  # CORS headers for API
-  for = "/api/*"
-  [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type, Authorization"
-    Access-Control-Allow-Credentials = "true"
