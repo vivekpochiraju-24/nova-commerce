@@ -1,25 +1,61 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  LayoutDashboard, Package, ShoppingCart, Users, BarChart3, 
+  LayoutDashboard, Package, ShoppingCart, Users, 
   Plus, Edit2, Trash2, Search, Store, LogOut, Menu, X,
-  TrendingUp, DollarSign, Eye, Calendar, Mail, Phone, Settings,
-  AlertCircle, CheckCircle, Clock, ArrowUp, ArrowDown, MoreVertical,
-  Download, Filter, RefreshCw, Bell, User, Shield, Activity, Target,
-  Zap, Award, Star, MessageSquare, FileText, Database, Cpu, HardDrive,
-  Wifi, Battery, Thermometer, Wind, Droplets, Sun, Moon, Cloud,
-  Key, ArrowRight
+  TrendingUp, DollarSign, Eye, Calendar, Mail,
+  CheckCircle, Clock, ArrowUp, Bell, Shield, 
+  Activity, Watch, Footprints, ChevronDown
 } from 'lucide-react';
 import { useProduct } from '@/context/ProductContext';
-import { useOrder } from '@/context/OrderContext';
 import { useAuth } from '@/context/AuthContext';
 import { Product } from '@/data/products';
 import { categories } from '@/data/products';
-import NeonButton from '@/components/ui/NeonButton';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
-type Tab = 'dashboard' | 'products' | 'orders' | 'customers' | 'analytics' | 'settings' | 'reports';
+type Tab = 'dashboard' | 'products' | 'orders' | 'customers';
+
+interface DbOrder {
+  id: string;
+  user_id: string;
+  total_amount: number;
+  status: string;
+  shipping_address: string | null;
+  phone: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  items?: DbOrderItem[];
+  profile?: { full_name: string | null; email: string; };
+}
+
+interface DbOrderItem {
+  id: string;
+  product_name: string;
+  quantity: number;
+  price: number;
+  product_image: string | null;
+}
+
+interface DbProfile {
+  id: string;
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  created_at: string;
+}
+
+interface DbSession {
+  id: string;
+  user_id: string;
+  login_at: string;
+  last_seen_at: string;
+  is_active: boolean;
+  user_agent: string | null;
+}
 
 const Admin: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -27,124 +63,111 @@ const Admin: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [dbOrders, setDbOrders] = useState<DbOrder[]>([]);
+  const [dbProfiles, setDbProfiles] = useState<DbProfile[]>([]);
+  const [dbSessions, setDbSessions] = useState<DbSession[]>([]);
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+  const [orderStatusUpdate, setOrderStatusUpdate] = useState<{ id: string; status: string } | null>(null);
   const navigate = useNavigate();
-  const { orders, updateOrderStatus } = useOrder();
   const { products, addProduct, updateProduct, deleteProduct } = useProduct();
-  const { user, allUsers, logout } = useAuth();
+  const { user, logout } = useAuth();
 
-  // Protect admin route
-  React.useEffect(() => {
+  useEffect(() => {
     if (!user || !user.isAdmin) {
       toast.error('Access denied. Admin privileges required.');
       navigate('/');
     }
   }, [user, navigate]);
 
-  // Form state for new/edit product
+  // Fetch real data from database
+  useEffect(() => {
+    if (user?.isAdmin) {
+      fetchOrders();
+      fetchProfiles();
+      fetchSessions();
+    }
+  }, [user]);
+
+  const fetchOrders = async () => {
+    const { data: orders, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) { console.error('Orders fetch error:', error); return; }
+
+    // Fetch items and profiles for each order
+    const enriched = await Promise.all((orders || []).map(async (order) => {
+      const { data: items } = await supabase
+        .from('order_items')
+        .select('*')
+        .eq('order_id', order.id);
+      
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('user_id', order.user_id)
+        .single();
+
+      return { ...order, items: items || [], profile: profile || undefined };
+    }));
+
+    setDbOrders(enriched);
+  };
+
+  const fetchProfiles = async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (!error && data) setDbProfiles(data);
+  };
+
+  const fetchSessions = async () => {
+    const { data, error } = await supabase
+      .from('user_sessions')
+      .select('*')
+      .order('login_at', { ascending: false })
+      .limit(50);
+    if (!error && data) setDbSessions(data);
+  };
+
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
+    const { error } = await supabase
+      .from('orders')
+      .update({ status: newStatus })
+      .eq('id', orderId);
+
+    if (error) {
+      toast.error('Failed to update order status');
+      return;
+    }
+    toast.success(`Order status updated to ${newStatus}`);
+    setOrderStatusUpdate(null);
+    fetchOrders();
+  };
+
   const [formData, setFormData] = useState({
     name: '',
     price: '',
     originalPrice: '',
-    category: 'Electronics',
+    category: 'Shoes',
     description: '',
     image: '',
     inStock: true,
   });
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0,
-    }).format(price);
-  };
+  const formatPrice = (price: number) =>
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(price);
 
-  const stats = [
-    { 
-      label: 'Total Revenue', 
-      value: formatPrice(orders.reduce((sum, order) => sum + order.totalAmount, 0)), 
-      change: '+12.5%', 
-      icon: DollarSign,
-      color: 'from-neon-green to-neon-cyan',
-      trend: 'up',
-      detail: 'vs last month'
-    },
-    { 
-      label: 'Total Orders', 
-      value: orders.length.toString(), 
-      change: '+8.2%', 
-      icon: ShoppingCart,
-      color: 'from-neon-cyan to-neon-violet',
-      trend: 'up',
-      detail: 'this week'
-    },
-    { 
-      label: 'Total Products', 
-      value: products.length.toString(), 
-      change: '+3', 
-      icon: Package,
-      color: 'from-neon-violet to-neon-pink',
-      trend: 'up',
-      detail: 'new additions'
-    },
-    { 
-      label: 'Total Customers', 
-      value: allUsers.filter(u => !u.isAdmin).length.toString(), 
-      change: '+15.3%', 
-      icon: Users,
-      color: 'from-neon-pink to-neon-violet',
-      trend: 'up',
-      detail: 'active users'
-    },
-    { 
-      label: 'Conversion Rate', 
-      value: '3.2%', 
-      change: '+0.8%', 
-      icon: Target,
-      color: 'from-orange-500 to-red-500',
-      trend: 'up',
-      detail: 'avg conversion'
-    },
-    { 
-      label: 'Avg Order Value', 
-      value: formatPrice(orders.length > 0 ? orders.reduce((sum, order) => sum + order.totalAmount, 0) / orders.length : 0), 
-      change: '+5.4%', 
-      icon: TrendingUp,
-      color: 'from-purple-500 to-indigo-500',
-      trend: 'up',
-      detail: 'per order'
-    }
-  ];
-
-  const recentOrders = orders.slice(0, 5);
-
-  // Enhanced customer data with order information
-  const allCustomers = allUsers.filter(u => !u.isAdmin).map(user => {
-    const customerOrders = orders.filter(order => order.customerEmail === user.email);
-    return {
-      ...user,
-      orders: customerOrders.length,
-      spent: customerOrders.reduce((sum, order) => sum + order.totalAmount, 0),
-      lastOrder: customerOrders.length > 0 ? Math.max(...customerOrders.map(o => new Date(o.orderDate).getTime())) : null
-    };
-  }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const totalRevenue = dbOrders.reduce((sum, o) => sum + Number(o.total_amount), 0);
+  const pendingOrders = dbOrders.filter(o => o.status === 'pending').length;
+  const deliveredOrders = dbOrders.filter(o => o.status === 'delivered').length;
+  const activeSessions = dbSessions.filter(s => s.is_active).length;
 
   const handleAddProduct = () => {
     setEditingProduct(null);
-    setFormData({
-      name: '',
-      price: '',
-      originalPrice: '',
-      category: 'Electronics',
-      description: '',
-      image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400',
-      inStock: true,
-    });
+    setFormData({ name: '', price: '', originalPrice: '', category: 'Shoes', description: '', image: '', inStock: true });
     setIsModalOpen(true);
   };
 
@@ -165,7 +188,6 @@ const Admin: React.FC = () => {
   const handleDeleteProduct = (id: string) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       deleteProduct(id);
-      toast.success('Product deleted successfully');
     }
   };
 
@@ -174,27 +196,22 @@ const Admin: React.FC = () => {
       toast.error('Please fill in all required fields');
       return;
     }
-
     const productData = {
       name: formData.name,
       price: parseInt(formData.price),
       originalPrice: formData.originalPrice ? parseInt(formData.originalPrice) : undefined,
       category: formData.category,
       description: formData.description,
-      image: formData.image,
+      image: formData.image || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400',
       inStock: formData.inStock,
       rating: editingProduct?.rating || 4.5,
       reviews: editingProduct?.reviews || 0,
     };
-
     if (editingProduct) {
       updateProduct(editingProduct.id, productData);
-      toast.success('Product updated successfully');
     } else {
       addProduct(productData);
-      toast.success('Product added successfully');
     }
-
     setIsModalOpen(false);
   };
 
@@ -203,102 +220,101 @@ const Admin: React.FC = () => {
     { id: 'products' as Tab, label: 'Products', icon: Package },
     { id: 'orders' as Tab, label: 'Orders', icon: ShoppingCart },
     { id: 'customers' as Tab, label: 'Customers', icon: Users },
-    { id: 'analytics' as Tab, label: 'Analytics', icon: BarChart3 },
-    { id: 'reports' as Tab, label: 'Reports', icon: FileText },
-    { id: 'settings' as Tab, label: 'Settings', icon: Settings },
   ];
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Delivered': return 'bg-neon-green/20 text-neon-green';
-      case 'Shipped': return 'bg-neon-cyan/20 text-neon-cyan';
-      case 'Processing': return 'bg-neon-violet/20 text-neon-violet';
-      default: return 'bg-yellow-500/20 text-yellow-500';
-    }
+  const getStatusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      pending: 'bg-amber-500/15 text-amber-600 border-amber-500/30',
+      processing: 'bg-blue-500/15 text-blue-600 border-blue-500/30',
+      shipped: 'bg-violet-500/15 text-violet-600 border-violet-500/30',
+      delivered: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30',
+      cancelled: 'bg-red-500/15 text-red-600 border-red-500/30',
+    };
+    return styles[status] || styles.pending;
   };
 
+  const filteredProducts = products.filter(p =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.category.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const getCustomerOrders = (userId: string) => dbOrders.filter(o => o.user_id === userId);
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
-      <aside className={`fixed top-0 left-0 h-full w-64 bg-primary text-primary-foreground z-50 transform transition-transform duration-300 ${
+      <aside className={`fixed top-0 left-0 h-full w-72 bg-foreground z-50 transform transition-transform duration-300 flex flex-col ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}>
-        <div className="p-6">
-          <Link to="/" className="flex items-center gap-2 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neon-cyan to-neon-violet flex items-center justify-center">
+        <div className="p-6 border-b border-white/10">
+          <Link to="/" className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-neon-cyan to-neon-violet flex items-center justify-center shadow-neon-cyan">
               <Store className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold">VEB Admin</span>
+            <div>
+              <span className="text-lg font-bold text-white block leading-tight">VEB Admin</span>
+              <span className="text-xs text-white/50">Shoes & Watches</span>
+            </div>
           </Link>
-
-          <nav className="space-y-2">
-            {sidebarItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setActiveTab(item.id);
-                  setIsSidebarOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
-                  activeTab === item.id
-                    ? 'bg-white/10 text-white'
-                    : 'text-white/70 hover:bg-white/5 hover:text-white'
-                }`}
-              >
-                <item.icon className="w-5 h-5" />
-                {item.label}
-              </button>
-            ))}
-          </nav>
         </div>
 
-        <div className="absolute bottom-6 left-6 right-6">
-          <Link to="/">
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/70 hover:bg-white/5 hover:text-white transition-colors">
-              <LogOut className="w-5 h-5" />
-              Back to Store
+        <nav className="flex-1 p-4 space-y-1">
+          {sidebarItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                activeTab === item.id
+                  ? 'bg-gradient-to-r from-neon-cyan/20 to-neon-violet/20 text-white border border-neon-cyan/30'
+                  : 'text-white/60 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <item.icon className="w-5 h-5" />
+              <span className="font-medium">{item.label}</span>
+              {item.id === 'orders' && pendingOrders > 0 && (
+                <span className="ml-auto text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full">{pendingOrders}</span>
+              )}
             </button>
+          ))}
+        </nav>
+
+        <div className="p-4 border-t border-white/10 space-y-2">
+          <Link to="/" className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/60 hover:bg-white/5 hover:text-white transition-colors">
+            <Eye className="w-5 h-5" />
+            <span>View Store</span>
           </Link>
+          <button onClick={() => { logout(); navigate('/'); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 transition-colors">
+            <LogOut className="w-5 h-5" />
+            <span>Logout</span>
+          </button>
         </div>
       </aside>
 
       {/* Mobile Overlay */}
       {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
+        <div className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)} />
       )}
 
       {/* Main Content */}
-      <main className="lg:ml-64 min-h-screen">
+      <main className="lg:ml-72 flex-1 min-h-screen">
         {/* Header */}
-        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-lg border-b border-border">
-          <div className="flex items-center justify-between p-4">
+        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border">
+          <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="lg:hidden p-2 rounded-lg hover:bg-secondary"
-              >
+              <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 rounded-xl hover:bg-secondary">
                 <Menu className="w-6 h-6" />
               </button>
-              <h1 className="text-xl font-bold text-foreground capitalize">{activeTab}</h1>
+              <div>
+                <h1 className="text-xl font-bold text-foreground capitalize">{activeTab}</h1>
+                <p className="text-sm text-muted-foreground">Welcome back, {user?.name}</p>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
-              <button className="p-2 rounded-lg hover:bg-secondary relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
-              <button className="p-2 rounded-lg hover:bg-secondary">
-                <RefreshCw className="w-5 h-5" />
-              </button>
-              <Link to="/">
-                <NeonButton variant="outline" size="sm">
-                  <Eye className="w-4 h-4" />
-                  View Store
-                </NeonButton>
-              </Link>
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                <Activity className="w-3.5 h-3.5 text-emerald-500" />
+                <span className="text-xs font-medium text-emerald-600">{activeSessions} active</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
                 <Shield className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium text-primary">Admin</span>
               </div>
@@ -307,509 +323,417 @@ const Admin: React.FC = () => {
         </header>
 
         <div className="p-6">
-          {/* Dashboard */}
+          {/* ===== DASHBOARD ===== */}
           {activeTab === 'dashboard' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
-            >
-              {/* Stats Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                {stats.map((stat, index) => (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              {/* Stats */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { label: 'Total Revenue', value: formatPrice(totalRevenue), icon: DollarSign, gradient: 'from-emerald-500 to-teal-500', change: `${dbOrders.length} orders` },
+                  { label: 'Total Orders', value: dbOrders.length.toString(), icon: ShoppingCart, gradient: 'from-blue-500 to-indigo-500', change: `${pendingOrders} pending` },
+                  { label: 'Products', value: products.length.toString(), icon: Package, gradient: 'from-violet-500 to-purple-500', change: `${products.filter(p => p.category === 'Shoes').length} shoes, ${products.filter(p => p.category === 'Watches').length} watches` },
+                  { label: 'Customers', value: dbProfiles.length.toString(), icon: Users, gradient: 'from-orange-500 to-pink-500', change: `${activeSessions} online now` },
+                ].map((stat, i) => (
                   <motion.div
                     key={stat.label}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="p-4 rounded-2xl bg-card border border-border hover:shadow-lg transition-shadow"
+                    transition={{ delay: i * 0.08 }}
+                    className="relative overflow-hidden rounded-2xl bg-card border border-border p-5 group hover:shadow-medium transition-shadow"
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className={`p-2 rounded-xl bg-gradient-to-br ${stat.color}`}>
-                        <stat.icon className="w-4 h-4 text-white" />
-                      </div>
-                      <div className={`flex items-center gap-1 text-xs font-medium ${
-                        stat.trend === 'up' ? 'text-green-500' : 'text-red-500'
-                      }`}>
-                        {stat.trend === 'up' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-                        {stat.change}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={`p-2.5 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg`}>
+                        <stat.icon className="w-5 h-5 text-white" />
                       </div>
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">{stat.label}</p>
-                      <p className="text-lg font-bold text-foreground">{stat.value}</p>
-                      <p className="text-xs text-muted-foreground">{stat.detail}</p>
-                    </div>
+                    <p className="text-sm text-muted-foreground mb-1">{stat.label}</p>
+                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{stat.change}</p>
+                    <div className={`absolute -bottom-8 -right-8 w-24 h-24 rounded-full bg-gradient-to-br ${stat.gradient} opacity-5 group-hover:opacity-10 transition-opacity`} />
                   </motion.div>
                 ))}
               </div>
 
-              {/* Recent Orders */}
-              <div className="rounded-2xl bg-card border border-border p-6">
-                <h2 className="text-lg font-bold text-foreground mb-4">Recent Orders</h2>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Order ID</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Customer</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Total</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
-                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {recentOrders.map((order) => (
-                        <tr key={order.id} className="border-b border-border hover:bg-secondary/50">
-                          <td className="py-3 px-4 font-medium">{order.id}</td>
-                          <td className="py-3 px-4">{order.customerName}</td>
-                          <td className="py-3 px-4">{formatPrice(order.totalAmount)}</td>
-                          <td className="py-3 px-4">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              order.status === 'Delivered' ? 'bg-green-100 text-green-800' :
-                              order.status === 'Shipped' ? 'bg-blue-100 text-blue-800' :
-                              order.status === 'Processing' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {order.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">{order.orderDate}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {/* Recent Orders + Quick Stats */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 rounded-2xl bg-card border border-border p-6">
+                  <h2 className="text-lg font-bold text-foreground mb-4">Recent Orders</h2>
+                  <div className="space-y-3">
+                    {dbOrders.slice(0, 5).map((order) => (
+                      <div key={order.id} className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                            <ShoppingCart className="w-5 h-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground text-sm">{order.profile?.full_name || order.profile?.email || 'Customer'}</p>
+                            <p className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-foreground text-sm">{formatPrice(Number(order.total_amount))}</p>
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${getStatusBadge(order.status)}`}>
+                            {order.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                    {dbOrders.length === 0 && (
+                      <p className="text-center text-muted-foreground py-8">No orders yet</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-2xl bg-gradient-to-br from-foreground to-foreground/90 p-6 text-primary-foreground">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Footprints className="w-5 h-5" />
+                      <Watch className="w-5 h-5" />
+                    </div>
+                    <h3 className="text-lg font-bold mb-1">Shoes & Watches</h3>
+                    <p className="text-sm text-primary-foreground/70 mb-4">Your exclusive product categories</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-white/10 rounded-xl p-3 text-center">
+                        <p className="text-2xl font-bold">{products.filter(p => p.category === 'Shoes').length}</p>
+                        <p className="text-xs text-primary-foreground/70">Shoes</p>
+                      </div>
+                      <div className="bg-white/10 rounded-xl p-3 text-center">
+                        <p className="text-2xl font-bold">{products.filter(p => p.category === 'Watches').length}</p>
+                        <p className="text-xs text-primary-foreground/70">Watches</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl bg-card border border-border p-6">
+                    <h3 className="font-semibold text-foreground mb-3">Recent Logins</h3>
+                    <div className="space-y-2">
+                      {dbSessions.slice(0, 4).map(session => {
+                        const profile = dbProfiles.find(p => p.user_id === session.user_id);
+                        return (
+                          <div key={session.id} className="flex items-center gap-2 text-sm">
+                            <div className={`w-2 h-2 rounded-full ${session.is_active ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
+                            <span className="text-foreground truncate flex-1">{profile?.full_name || profile?.email || 'User'}</span>
+                            <span className="text-xs text-muted-foreground">{new Date(session.login_at).toLocaleDateString()}</span>
+                          </div>
+                        );
+                      })}
+                      {dbSessions.length === 0 && <p className="text-sm text-muted-foreground">No sessions</p>}
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
           )}
 
-          {/* Products */}
+          {/* ===== PRODUCTS ===== */}
           {activeTab === 'products' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
-            >
-              {/* Actions Bar */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div className="flex flex-col sm:flex-row gap-4 justify-between">
                 <div className="relative flex-1 max-w-md">
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search products..."
+                    placeholder="Search shoes, watches..."
                     className="w-full px-4 py-2.5 pl-11 rounded-xl bg-card border border-border focus:border-primary outline-none text-foreground"
                   />
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 </div>
-                <NeonButton variant="primary" onClick={handleAddProduct}>
+                <button onClick={handleAddProduct} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-foreground text-primary-foreground font-medium hover:bg-foreground/90 transition-colors">
                   <Plus className="w-4 h-4" />
                   Add Product
-                </NeonButton>
+                </button>
               </div>
 
-              {/* Products Table */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filteredProducts.map((product, i) => (
+                  <motion.div
+                    key={product.id}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="rounded-2xl bg-card border border-border overflow-hidden group hover:shadow-medium transition-shadow"
+                  >
+                    <div className="relative aspect-[4/3] overflow-hidden">
+                      <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <div className="absolute top-3 left-3 flex gap-2">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          product.category === 'Shoes' ? 'bg-blue-500/90 text-white' : 'bg-amber-500/90 text-white'
+                        }`}>
+                          {product.category === 'Shoes' ? <Footprints className="w-3 h-3 inline mr-1" /> : <Watch className="w-3 h-3 inline mr-1" />}
+                          {product.category}
+                        </span>
+                      </div>
+                      <div className="absolute top-3 right-3">
+                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${
+                          product.inStock ? 'bg-emerald-500/90 text-white' : 'bg-red-500/90 text-white'
+                        }`}>{product.inStock ? 'IN STOCK' : 'OUT'}</span>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-semibold text-foreground mb-1 line-clamp-1">{product.name}</h3>
+                      <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{product.description}</p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-lg font-bold text-foreground">{formatPrice(product.price)}</span>
+                          {product.originalPrice && (
+                            <span className="text-xs text-muted-foreground line-through ml-2">{formatPrice(product.originalPrice)}</span>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          <button onClick={() => handleEditProduct(product)} className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDeleteProduct(product.id)} className="p-2 rounded-lg hover:bg-destructive/10 text-destructive transition-colors">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* ===== ORDERS ===== */}
+          {activeTab === 'orders' && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+              <div className="flex gap-3 flex-wrap">
+                {['all', 'pending', 'processing', 'shipped', 'delivered'].map(status => (
+                  <button
+                    key={status}
+                    onClick={() => setSearchQuery(status === 'all' ? '' : status)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                      (searchQuery === '' && status === 'all') || searchQuery === status
+                        ? 'bg-foreground text-primary-foreground border-foreground'
+                        : 'bg-card text-muted-foreground border-border hover:border-foreground/30'
+                    }`}
+                  >
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-3">
+                {dbOrders
+                  .filter(o => !searchQuery || o.status === searchQuery)
+                  .map((order) => (
+                  <motion.div
+                    key={order.id}
+                    layout
+                    className="rounded-2xl bg-card border border-border overflow-hidden"
+                  >
+                    <div
+                      className="flex items-center justify-between p-4 cursor-pointer hover:bg-secondary/30 transition-colors"
+                      onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                          <ShoppingCart className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">{order.profile?.full_name || order.profile?.email || 'Customer'}</p>
+                          <p className="text-xs text-muted-foreground">#{order.id.slice(0, 8)} · {new Date(order.created_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="font-bold text-foreground">{formatPrice(Number(order.total_amount))}</span>
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(order.status)}`}>
+                          {order.status}
+                        </span>
+                        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${expandedOrder === order.id ? 'rotate-180' : ''}`} />
+                      </div>
+                    </div>
+
+                    <AnimatePresence>
+                      {expandedOrder === order.id && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="border-t border-border overflow-hidden"
+                        >
+                          <div className="p-4 space-y-4">
+                            {/* Items */}
+                            <div>
+                              <h4 className="text-sm font-semibold text-foreground mb-2">Items Ordered</h4>
+                              <div className="space-y-2">
+                                {order.items?.map(item => (
+                                  <div key={item.id} className="flex items-center gap-3 p-2 rounded-lg bg-secondary/30">
+                                    {item.product_image && (
+                                      <img src={item.product_image} alt={item.product_name} className="w-10 h-10 rounded-lg object-cover" />
+                                    )}
+                                    <div className="flex-1">
+                                      <p className="text-sm font-medium text-foreground">{item.product_name}</p>
+                                      <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
+                                    </div>
+                                    <p className="text-sm font-semibold">{formatPrice(Number(item.price) * item.quantity)}</p>
+                                  </div>
+                                ))}
+                                {(!order.items || order.items.length === 0) && (
+                                  <p className="text-sm text-muted-foreground">No items found</p>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Details */}
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                              {order.phone && (
+                                <div>
+                                  <span className="text-muted-foreground">Phone: </span>
+                                  <span className="text-foreground">{order.phone}</span>
+                                </div>
+                              )}
+                              {order.shipping_address && (
+                                <div>
+                                  <span className="text-muted-foreground">Address: </span>
+                                  <span className="text-foreground">{order.shipping_address}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Status Update */}
+                            <div className="flex items-center gap-2 pt-2 border-t border-border">
+                              <span className="text-sm text-muted-foreground">Update Status:</span>
+                              {['pending', 'processing', 'shipped', 'delivered'].map(status => (
+                                <button
+                                  key={status}
+                                  onClick={() => handleUpdateOrderStatus(order.id, status)}
+                                  disabled={order.status === status}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                    order.status === status
+                                      ? 'bg-foreground text-primary-foreground'
+                                      : 'bg-secondary hover:bg-secondary/80 text-foreground'
+                                  }`}
+                                >
+                                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                ))}
+                {dbOrders.length === 0 && (
+                  <div className="text-center py-16 text-muted-foreground">
+                    <ShoppingCart className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p>No orders yet</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* ===== CUSTOMERS ===== */}
+          {activeTab === 'customers' && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="rounded-2xl bg-card border border-border p-5">
+                  <p className="text-sm text-muted-foreground mb-1">Total Users</p>
+                  <p className="text-3xl font-bold text-foreground">{dbProfiles.length}</p>
+                </div>
+                <div className="rounded-2xl bg-card border border-border p-5">
+                  <p className="text-sm text-muted-foreground mb-1">Active Sessions</p>
+                  <p className="text-3xl font-bold text-emerald-600">{activeSessions}</p>
+                </div>
+                <div className="rounded-2xl bg-card border border-border p-5">
+                  <p className="text-sm text-muted-foreground mb-1">Total Logins</p>
+                  <p className="text-3xl font-bold text-foreground">{dbSessions.length}</p>
+                </div>
+              </div>
+
               <div className="rounded-2xl bg-card border border-border overflow-hidden">
+                <div className="p-4 border-b border-border">
+                  <h2 className="text-lg font-bold text-foreground">All Users</h2>
+                </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-border bg-secondary/50">
-                        <th className="text-left py-4 px-4 text-sm font-medium text-muted-foreground">Product</th>
-                        <th className="text-left py-4 px-4 text-sm font-medium text-muted-foreground">Category</th>
-                        <th className="text-left py-4 px-4 text-sm font-medium text-muted-foreground">Price</th>
-                        <th className="text-left py-4 px-4 text-sm font-medium text-muted-foreground">Stock</th>
-                        <th className="text-left py-4 px-4 text-sm font-medium text-muted-foreground">Actions</th>
+                      <tr className="border-b border-border bg-secondary/30">
+                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">User</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Email</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Joined</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Orders</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Spent</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredProducts.map((product) => (
-                        <tr key={product.id} className="border-b border-border hover:bg-secondary/30">
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={product.image}
-                                alt={product.name}
-                                className="w-12 h-12 rounded-lg object-cover"
-                              />
-                              <span className="font-medium line-clamp-1">{product.name}</span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4 text-muted-foreground">{product.category}</td>
-                          <td className="py-4 px-4 font-medium">{formatPrice(product.price)}</td>
-                          <td className="py-4 px-4">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              product.inStock 
-                                ? 'bg-neon-green/20 text-neon-green' 
-                                : 'bg-destructive/20 text-destructive'
-                            }`}>
-                              {product.inStock ? 'In Stock' : 'Out of Stock'}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleEditProduct(product)}
-                                className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteProduct(product.id)}
-                                className="p-2 rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                      {dbProfiles.map((profile) => {
+                        const userOrders = getCustomerOrders(profile.user_id);
+                        const totalSpent = userOrders.reduce((sum, o) => sum + Number(o.total_amount), 0);
+                        const isOnline = dbSessions.some(s => s.user_id === profile.user_id && s.is_active);
+                        return (
+                          <tr key={profile.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-neon-cyan to-neon-violet flex items-center justify-center text-white text-sm font-bold">
+                                  {(profile.full_name || profile.email)[0].toUpperCase()}
+                                </div>
+                                <span className="font-medium text-foreground">{profile.full_name || 'User'}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Mail className="w-3.5 h-3.5" />
+                                {profile.email}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Calendar className="w-3.5 h-3.5" />
+                                {new Date(profile.created_at).toLocaleDateString()}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-sm font-medium text-foreground">{userOrders.length}</td>
+                            <td className="py-3 px-4 text-sm font-medium text-foreground">{formatPrice(totalSpent)}</td>
+                            <td className="py-3 px-4">
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                                isOnline ? 'bg-emerald-500/15 text-emerald-600' : 'bg-muted text-muted-foreground'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
+                                {isOnline ? 'Online' : 'Offline'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
+                {dbProfiles.length === 0 && (
+                  <div className="text-center py-16 text-muted-foreground">
+                    <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p>No users registered yet</p>
+                  </div>
+                )}
               </div>
-            </motion.div>
-          )}
 
-          {/* Orders */}
-          {activeTab === 'orders' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl bg-card border border-border p-6"
-            >
-              <h2 className="text-lg font-bold text-foreground mb-4">All Orders</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Order ID</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Customer</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Total</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orders.map((order) => (
-                      <tr key={order.id} className="border-b border-border hover:bg-secondary/50">
-                        <td className="py-3 px-4 font-medium">{order.id}</td>
-                        <td className="py-3 px-4">{order.customerName}</td>
-                        <td className="py-3 px-4">{formatPrice(order.totalAmount)}</td>
-                        <td className="py-3 px-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                            {order.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-muted-foreground">{order.orderDate}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Customers */}
-          {activeTab === 'customers' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl bg-card border border-border p-6"
-            >
-              <h2 className="text-lg font-bold text-foreground mb-4">Customer List</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Customer</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Email</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Contact Info</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Orders</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Total Spent</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Joined</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {allCustomers.map((customer, index) => (
-                      <tr key={customer.id} className="border-b border-border hover:bg-secondary/50">
-                        <td className="py-3 px-4">
+              {/* Recent Login Activity */}
+              <div className="rounded-2xl bg-card border border-border p-6">
+                <h2 className="text-lg font-bold text-foreground mb-4">Login Activity</h2>
+                <div className="space-y-2">
+                  {dbSessions.slice(0, 10).map(session => {
+                    const profile = dbProfiles.find(p => p.user_id === session.user_id);
+                    return (
+                      <div key={session.id} className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2.5 h-2.5 rounded-full ${session.is_active ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
                           <div>
-                            <div className="font-medium">{customer.name}</div>
-                            <div className="text-xs text-muted-foreground">ID: {customer.id}</div>
+                            <p className="text-sm font-medium text-foreground">{profile?.full_name || profile?.email || 'Unknown'}</p>
+                            <p className="text-xs text-muted-foreground">{session.user_agent?.slice(0, 40) || 'Browser session'}</p>
                           </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2">
-                            <Mail className="w-4 h-4 text-muted-foreground" />
-                            <span>{customer.email}</span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="space-y-1">
-                            {customer.phone && (
-                              <div className="flex items-center gap-2 text-sm">
-                                <Phone className="w-4 h-4 text-muted-foreground" />
-                                <span>{customer.phone}</span>
-                              </div>
-                            )}
-                            {customer.address && (
-                              <div className="text-sm text-muted-foreground max-w-xs truncate">
-                                {customer.address}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="text-center">
-                            <div className="font-medium">{customer.orders}</div>
-                            {customer.lastOrder && (
-                              <div className="text-xs text-muted-foreground">
-                                Last: {new Date(customer.lastOrder).toLocaleDateString()}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 font-medium">{formatPrice(customer.spent)}</td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-sm">{new Date(customer.createdAt).toLocaleDateString()}</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Analytics */}
-          {activeTab === 'analytics' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
-            >
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Sales Chart */}
-                <div className="rounded-2xl bg-card border border-border p-6">
-                  <h3 className="text-lg font-bold text-foreground mb-4">Sales Overview</h3>
-                  <div className="h-64 flex items-center justify-center bg-secondary/20 rounded-xl">
-                    <div className="text-center">
-                      <BarChart3 className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-muted-foreground">Sales chart visualization</p>
-                      <p className="text-sm text-muted-foreground">Integration with chart library needed</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Customer Analytics */}
-                <div className="rounded-2xl bg-card border border-border p-6">
-                  <h3 className="text-lg font-bold text-foreground mb-4">Customer Analytics</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">New Customers (This Month)</span>
-                      <span className="font-bold text-foreground">24</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Returning Customers</span>
-                      <span className="font-bold text-foreground">89</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Customer Retention Rate</span>
-                      <span className="font-bold text-green-500">78.5%</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Avg Customer Lifetime Value</span>
-                      <span className="font-bold text-foreground">{formatPrice(12500)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Product Performance */}
-                <div className="rounded-2xl bg-card border border-border p-6">
-                  <h3 className="text-lg font-bold text-foreground mb-4">Product Performance</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Top Selling Product</span>
-                      <span className="font-bold text-foreground">Laptop Pro</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Low Stock Items</span>
-                      <span className="font-bold text-orange-500">3</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Category Performance</span>
-                      <span className="font-bold text-foreground">Electronics</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Products with Reviews</span>
-                      <span className="font-bold text-foreground">45/67</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Order Analytics */}
-                <div className="rounded-2xl bg-card border border-border p-6">
-                  <h3 className="text-lg font-bold text-foreground mb-4">Order Analytics</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Orders Today</span>
-                      <span className="font-bold text-foreground">12</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Pending Orders</span>
-                      <span className="font-bold text-yellow-500">5</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Average Processing Time</span>
-                      <span className="font-bold text-foreground">2.5 days</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Order Completion Rate</span>
-                      <span className="font-bold text-green-500">94.2%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Reports */}
-          {activeTab === 'reports' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
-            >
-              <div className="rounded-2xl bg-card border border-border p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-lg font-bold text-foreground">Reports & Exports</h2>
-                  <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
-                    <Download className="w-4 h-4" />
-                    Export All
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[
-                    { title: 'Sales Report', desc: 'Monthly sales analysis', icon: DollarSign, color: 'from-green-500 to-emerald-500' },
-                    { title: 'Inventory Report', desc: 'Stock levels and movements', icon: Package, color: 'from-blue-500 to-cyan-500' },
-                    { title: 'Customer Report', desc: 'Customer demographics and behavior', icon: Users, color: 'from-purple-500 to-pink-500' },
-                    { title: 'Order Report', desc: 'Order history and status', icon: ShoppingCart, color: 'from-orange-500 to-red-500' },
-                    { title: 'Product Performance', desc: 'Best and worst performing products', icon: TrendingUp, color: 'from-indigo-500 to-purple-500' },
-                    { title: 'Financial Summary', desc: 'Revenue and expense summary', icon: FileText, color: 'from-yellow-500 to-orange-500' },
-                  ].map((report, index) => (
-                    <motion.div
-                      key={report.title}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="p-4 rounded-xl border border-border hover:shadow-lg transition-shadow cursor-pointer"
-                    >
-                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${report.color} flex items-center justify-center mb-3`}>
-                        <report.icon className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">{new Date(session.login_at).toLocaleString()}</p>
+                          <p className="text-[10px] text-muted-foreground">Last seen: {new Date(session.last_seen_at).toLocaleString()}</p>
+                        </div>
                       </div>
-                      <h3 className="font-semibold text-foreground mb-1">{report.title}</h3>
-                      <p className="text-sm text-muted-foreground mb-3">{report.desc}</p>
-                      <button className="flex items-center gap-2 text-sm text-primary hover:underline">
-                        <Download className="w-3 h-3" />
-                        Generate Report
-                      </button>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Settings */}
-          {activeTab === 'settings' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
-            >
-              <div className="rounded-2xl bg-card border border-border p-6">
-                <h2 className="text-lg font-bold text-foreground mb-6">Admin Settings</h2>
-                
-                <div className="space-y-6">
-                  {/* Store Settings */}
-                  <div>
-                    <h3 className="font-semibold text-foreground mb-4">Store Configuration</h3>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-foreground">Store Name</p>
-                          <p className="text-sm text-muted-foreground">VEB Store</p>
-                        </div>
-                        <button className="text-sm text-primary hover:underline">Edit</button>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-foreground">Store Email</p>
-                          <p className="text-sm text-muted-foreground">admin@vebstore.com</p>
-                        </div>
-                        <button className="text-sm text-primary hover:underline">Edit</button>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-foreground">Currency</p>
-                          <p className="text-sm text-muted-foreground">Indian Rupee (₹)</p>
-                        </div>
-                        <button className="text-sm text-primary hover:underline">Change</button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Notification Settings */}
-                  <div>
-                    <h3 className="font-semibold text-foreground mb-4">Notification Preferences</h3>
-                    <div className="space-y-3">
-                      {[
-                        { label: 'New Order Notifications', enabled: true },
-                        { label: 'Low Stock Alerts', enabled: true },
-                        { label: 'Customer Registration', enabled: false },
-                        { label: 'System Updates', enabled: true },
-                      ].map((setting, index) => (
-                        <div key={setting.label} className="flex items-center justify-between">
-                          <span className="text-sm text-foreground">{setting.label}</span>
-                          <button
-                            className={`w-12 h-6 rounded-full transition-colors ${
-                              setting.enabled ? 'bg-primary' : 'bg-gray-300'
-                            }`}
-                          >
-                            <div className={`w-5 h-5 bg-white rounded-full transition-transform ${
-                              setting.enabled ? 'translate-x-6' : 'translate-x-0.5'
-                            }`} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Security Settings */}
-                  <div>
-                    <h3 className="font-semibold text-foreground mb-4">Security</h3>
-                    <div className="space-y-3">
-                      <button className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:bg-secondary/50">
-                        <div className="flex items-center gap-3">
-                          <Shield className="w-5 h-5 text-muted-foreground" />
-                          <span className="text-sm text-foreground">Two-Factor Authentication</span>
-                        </div>
-                        <span className="text-sm text-green-500">Enabled</span>
-                      </button>
-                      <button className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:bg-secondary/50">
-                        <div className="flex items-center gap-3">
-                          <Key className="w-5 h-5 text-muted-foreground" />
-                          <span className="text-sm text-foreground">Change Admin Password</span>
-                        </div>
-                        <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                      </button>
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
               </div>
             </motion.div>
@@ -818,119 +742,76 @@ const Admin: React.FC = () => {
       </main>
 
       {/* Product Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setIsModalOpen(false)} />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative w-full max-w-lg bg-card rounded-2xl p-6 shadow-xl max-h-[90vh] overflow-y-auto"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">
-                {editingProduct ? 'Edit Product' : 'Add New Product'}
-              </h2>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-2 rounded-lg hover:bg-secondary"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Product Name *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl bg-secondary border border-border focus:border-primary outline-none"
-                  placeholder="Enter product name"
-                />
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-card rounded-2xl p-6 shadow-xl max-h-[90vh] overflow-y-auto border border-border"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-foreground">{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
+                <button onClick={() => setIsModalOpen(false)} className="p-2 rounded-lg hover:bg-secondary">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Price (₹) *</label>
-                  <input
-                    type="number"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl bg-secondary border border-border focus:border-primary outline-none"
-                    placeholder="999"
-                  />
+                  <label className="block text-sm font-medium text-foreground mb-1">Product Name *</label>
+                  <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-secondary border border-border focus:border-primary outline-none text-foreground" placeholder="Enter product name" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Price (₹) *</label>
+                    <input type="number" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl bg-secondary border border-border focus:border-primary outline-none text-foreground" placeholder="999" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Original Price (₹)</label>
+                    <input type="number" value={formData.originalPrice} onChange={(e) => setFormData({ ...formData, originalPrice: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl bg-secondary border border-border focus:border-primary outline-none text-foreground" placeholder="1299" />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Original Price (₹)</label>
-                  <input
-                    type="number"
-                    value={formData.originalPrice}
-                    onChange={(e) => setFormData({ ...formData, originalPrice: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl bg-secondary border border-border focus:border-primary outline-none"
-                    placeholder="1299"
-                  />
+                  <label className="block text-sm font-medium text-foreground mb-1">Category</label>
+                  <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-secondary border border-border focus:border-primary outline-none text-foreground">
+                    <option value="Shoes">👟 Shoes</option>
+                    <option value="Watches">⌚ Watches</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Description *</label>
+                  <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-secondary border border-border focus:border-primary outline-none text-foreground resize-none" rows={3} placeholder="Enter product description" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Image URL</label>
+                  <input type="text" value={formData.image} onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-secondary border border-border focus:border-primary outline-none text-foreground" placeholder="https://..." />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="inStock" checked={formData.inStock} onChange={(e) => setFormData({ ...formData, inStock: e.target.checked })} className="w-4 h-4 rounded" />
+                  <label htmlFor="inStock" className="text-sm font-medium text-foreground">In Stock</label>
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-border text-foreground hover:bg-secondary transition-colors font-medium">
+                    Cancel
+                  </button>
+                  <button onClick={handleSaveProduct} className="flex-1 px-4 py-2.5 rounded-xl bg-foreground text-primary-foreground hover:bg-foreground/90 transition-colors font-medium">
+                    {editingProduct ? 'Update Product' : 'Add Product'}
+                  </button>
                 </div>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Category</label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl bg-secondary border border-border focus:border-primary outline-none"
-                >
-                  {categories.filter(c => c !== 'All').map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Description *</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl bg-secondary border border-border focus:border-primary outline-none resize-none"
-                  rows={3}
-                  placeholder="Enter product description"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Image URL</label>
-                <input
-                  type="text"
-                  value={formData.image}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl bg-secondary border border-border focus:border-primary outline-none"
-                  placeholder="https://..."
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="inStock"
-                  checked={formData.inStock}
-                  onChange={(e) => setFormData({ ...formData, inStock: e.target.checked })}
-                  className="w-4 h-4 rounded"
-                />
-                <label htmlFor="inStock" className="text-sm font-medium">In Stock</label>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <NeonButton variant="outline" className="flex-1" onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </NeonButton>
-                <NeonButton variant="primary" className="flex-1" onClick={handleSaveProduct}>
-                  {editingProduct ? 'Update Product' : 'Add Product'}
-                </NeonButton>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
